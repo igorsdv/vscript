@@ -1,0 +1,12 @@
+(* EBNF grammar with tokens as terminals *)
+
+program ::= block, END
+block ::= ( IF_STMT | WHILE_STMT ), expression, BLOCK_START, block, BLOCK_END, block | statement, block | @
+statement ::= PRINT_STMT, expression, SEMICOLON | expression, SEMICOLON | SEMICOLON
+expression ::= comp_expr | IDENTIFIER, ASSIGN_OP, expression
+comp_expr ::= add_expr, [ COMP_OP, add_expr ]
+add_expr ::= mult_expr, { ADD_OP, mult_expr }
+mult_expr ::= unary_expr, { MULT_OP, unary_expr }
+unary_expr ::= IDENTIFIER | LITERAL | NUMERAL | LPAREN, expression, RPAREN | ADD_OP, unary_expr
+
+(* todo: add || and && , lvalue as name or name[x], etc *)
