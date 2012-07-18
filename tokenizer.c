@@ -174,7 +174,7 @@ void tokenize(FILE *f)
 					c = EOF;
 			}
 			else if (c == EOF)
-				ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
+				break;//ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
 			if (c == EOF)
 				continue;
 			add_newline();
@@ -368,6 +368,7 @@ void tokenize(FILE *f)
 		c = getc(f);	// where appropriate, "continue" is used to skip this instead of ungetc()
 	}
 
-	//for (c = 0; c < tokens.length; c++)
-	//	printf("%s %s\n", tkns[tokens.array[c].type], (char *)(string.value + tokens.array[c].offset));
+	for (c = 0; c < tokens.length; c++)
+		printf("%s %s\n", tkns[tokens.array[c].type], (char *)(string.value + tokens.array[c].offset));
+	puts("");
 }

@@ -228,12 +228,14 @@ void function()
 	read_token();
 	if (token_type != LPAREN)
 		ERROR("SyntaxError: invalid function definition at line %d", line_no);
+	read_token();
 	name_list();
 	if (token_type != RPAREN)
 		ERROR("SyntaxError: unterminated function definition at line %d", line_no);
 	read_token();
 	if (token_type != BLOCK_START)
 		ERROR("SyntaxError: missing colon at line %d", line_no);
+	read_token();
 	// handle function definition
 	block();
 	if (token_type != BLOCK_END)

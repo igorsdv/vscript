@@ -7,3 +7,6 @@ while x < y:
 	print y
 print(z+1)
 print y
+
+def a (a,bc):
+	print x
