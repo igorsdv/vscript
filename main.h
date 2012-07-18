@@ -6,6 +6,7 @@
 typedef unsigned char byte;
 
 #define MAX_NESTED_BLOCKS 256
+#define MAX_NAME_LENGTH 255
 
 int i_mode;		// interactive mode
 int line_no;	// line number
@@ -23,35 +24,39 @@ int line_no;	// line number
 typedef enum {
 	END,
 	NEWLINE,		// used for line number
-	PRINT_STMT,	
-	IF_STMT,
-	WHILE_STMT,
+	PRINT_KW,
+	DEF_KW,	
+	GLOBAL_KW,
+	IF_KW,
+	WHILE_KW,
+	ELSE_KW,
 	BLOCK_START,	// colon
 	BLOCK_END,		// unindent
 	NAME,			// variable
-	DOT,			// (not implemented)
 	LITERAL,
 	NUMERAL,
-	MULT_OP,
+	MUL_OP,
 	ADD_OP,
-	COMP_OP,
-	ASSIGN_OP,
+	CMP_OP,
+	EQL_OP,
+	ASG_OP,
 	LPAREN,
 	RPAREN,
 	LBRACKET,
 	RBRACKET,
+	COMMA,
 	SEMICOLON
 } TokenType;
 
 typedef enum {
 	NONE,
-	INTEGER,
+	NUMBER,
 	STRING
 } ObjectType;
 
 typedef enum {
 	STOP,
-	INC_LINE,		// increment line number
+	SET_LINE,		// SET_LINE (int line_no)
 	POP,
 	PRINT,			// print and pop
 	STORE,			// STORE (int symbol)
@@ -76,11 +81,11 @@ typedef enum {
 
 /* structs */
 
-typedef struct {
+/*typedef struct {
 	TokenType type;
 	int start;
 	int length;
-} Token;
+} Token;*/
 
 typedef struct object
 {

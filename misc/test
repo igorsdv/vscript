@@ -1,10 +1,9 @@
-z = 0
-x = -1
-y = 10
+z = -.12
+x = "hello\\world."
+y = 10.12
 while x < y:
 	z = x + 1
 	if x: print x;
-		print y
-	print x
-print z
+	print y
+print(z+1)
 print y

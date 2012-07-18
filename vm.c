@@ -68,7 +68,7 @@ byte *vm_read(int size)
 
 void vm_run()
 {
-	char opcodes[][20] = { "STOP","INC_LINE","POP","PRINT","STORE","LOAD","LOAD_CONST","JUMP","JUMP_IF_TRUE","JUMP_IF_FALSE","UNARY_PLUS","UNARY_MINUS","EQUAL","NOT_EQUAL","GREATER_THAN","LESS_THAN","GREATER_THAN_EQUAL","LESS_THAN_EQUAL","ADD","SUB","MULT","DIV" };
+	char opcodes[][20] = { "STOP","SET_LINE","POP","PRINT","STORE","LOAD","LOAD_CONST","JUMP","JUMP_IF_TRUE","JUMP_IF_FALSE","UNARY_PLUS","UNARY_MINUS","EQUAL","NOT_EQUAL","GREATER_THAN","LESS_THAN","GREATER_THAN_EQUAL","LESS_THAN_EQUAL","ADD","SUB","MULT","DIV" };
 
 	offset = 0;
 
@@ -87,6 +87,7 @@ void vm_run()
 		case JUMP:
 		case JUMP_IF_TRUE:
 		case JUMP_IF_FALSE:
+		case SET_LINE:
 			printf(" %d\n", *vm_read(sizeof(int)));
 			break;
 		case LOAD_CONST:
@@ -95,8 +96,9 @@ void vm_run()
 				case NONE:
 					printf(" NONE\n");
 					break;
-				case INTEGER:
-					printf(" INTEGER %d\n", *vm_read(sizeof(int)));
+				case NUMBER:
+					printf(" NUMBER %s\n", vm_read(0));
+					offset += strlen(vm_read(0)) + 1;
 					break;
 				case STRING:
 					printf(" STRING %s\n", vm_read(0));

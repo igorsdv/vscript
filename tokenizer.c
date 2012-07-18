@@ -1,151 +1,256 @@
 #include "main.h"
-#define SIZE_INCREMENT 1024
-#define TOKENS_SIZE_INCREMENT 256
-#define MAX_INDENT_LENGTH 255
+#define TOKEN_STRING_ALLOC_SIZE 1024
+#define TOKEN_ARRAY_ALLOC_SIZE 256
+#define INDENT_STRING_ALLOC_SIZE 256
 
-char *token_string;
-int string_size = SIZE_INCREMENT;
-int string_length = 0;
+typedef struct {
+	TokenType type;
+	int offset;
+} Token;
 
-Token *tokens;
-int tokens_size = TOKENS_SIZE_INCREMENT;
-int tokens_length = 0;
+static struct {
+	char *value;
+	int size;
+	int length;
+} string = { 0, 0, 0 };
+
+static struct {
+	Token *array;
+	int size;
+	int length;
+} tokens = { 0, 0, 0 };
+
+static struct {
+	char *string;
+	int *offsets;		// offset in string of end of indent for each block
+	int size;
+} indent = { 0, 0, 0 };
 
 int line_no = 1;
 
-int parens = 0;
-int blocks = 0;
-char indent_string[MAX_INDENT_LENGTH + 1] = "";
-int block_indent[MAX_INDENT_LENGTH + 1];
-
-void tokens_init()
+void set_indent(int index, char c)
 {
-	token_string = malloc(string_size);
-	tokens = malloc(tokens_size * sizeof(Token));
+	while (index >= indent.size)
+	{
+		indent.size += INDENT_STRING_ALLOC_SIZE;
+		indent.string = realloc(indent.string, indent.size);
+		indent.offsets = realloc(indent.offsets, indent.size * sizeof(int));
+	}
+	indent.string[index] = c;
+}
+
+char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "GLOBAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
+
+void add_token(TokenType type, int offset)
+{
+	Token t = { type, offset };
+	if (tokens.length == tokens.size)
+		tokens.array = realloc(tokens.array, (tokens.size += TOKEN_ARRAY_ALLOC_SIZE) * sizeof(Token));
+	tokens.array[tokens.length++] = t;
+}
+
+void add_newline()
+{
+	add_token(NEWLINE, 0);
+	line_no++;
+	if (i_mode)
+		puts("... ");
+}
+
+void tokens_reset()
+{
+	tokens.length = 0;
 }
 
 void tokens_free()
 {
-	free(token_string);
-	free(tokens);
+	free(tokens.array);
+	free(string.value);
+	free(indent.string);
+	free(indent.offsets);
+}
+
+TokenType last_token_type()
+{
+	int i = tokens.length;
+	while (i-- > 0)
+		if (tokens.array[i].type != NEWLINE)
+			return tokens.array[i].type;
+	return -1;
+}
+
+/*
+	TokenType next_token_type(int index)
+	{
+		while (++index < tokens.length)
+			if (tokens.array[index].type != NEWLINE)
+				return tokens.array[index].type;
+		return 0;
+	}
+*/
+
+TokenType get_token_type(int index)
+{
+	if (index < tokens.length)
+		return tokens.array[index].type;
+	else
+		return 0;
+}
+
+char *get_token_value(int index)
+{
+	// assume index < tokens.length
+	return (char *)(string.value + tokens.array[index].offset);
 }
 
 void append(char c)
 {
-	if (string_length == string_size)
-	{
-		string_size += SIZE_INCREMENT;
-		token_string = realloc(token_string, string_size);
-	}
-	token_string[string_length++] = c;
-}
-
-void add_token(TokenType type, int start)
-{
-	Token token;
-	token.type = type;
-	if (type == NEWLINE)
-		line_no++;
-	else if (type == LPAREN)
-		parens++;
-	else if (type == RPAREN)
-		parens--;
-	else if (type == BLOCK_START)
-		blocks++;
-	else if (type == BLOCK_END)
-		blocks--;
-	token.start = start;
-	token.length = string_length - start;
-	if (tokens_length == tokens_size)
-	{
-		tokens_size += TOKENS_SIZE_INCREMENT;
-		tokens = realloc(tokens, tokens_size * sizeof(Token));
-	}
-	tokens[tokens_length++] = token;
+	if (string.length == string.size)
+		string.value = realloc(string.value, string.size += TOKEN_STRING_ALLOC_SIZE);
+	string.value[string.length++] = c;
 }
 
 void tokenize(FILE *f)
 {
-	int c, position;
-	int new_line = 1;			// used for indentation
-	int new_indent = 1;			// after BLOCK_START
+	int c = getc(f);
+	byte new_line = 1;		// after a line break
+	byte new_block = 1;		// indent increase possible
+	int parens = 0;
+	int blocks = 0;
 
-	while ((c = fgetc(f)) != EOF)
+	set_indent(0, '\0');
+	indent.offsets[0] = 0;
+	append(0);
+
+	while (1)
 	{
-		position = string_length;
+		int offset = string.length;
+		// take care of whitespace first
 		if (new_line)
 		{
-			int i = -1;
-			while (c == indent_string[++i])
-				c = fgetc(f);
-			if (i < strlen(indent_string))		// unindent: end block(s)
+			int i;
+			for (i = 0; c == indent.string[i]; i++)
+				c = getc(f);
+			if (c == '#')										// disregard indent before comments
+				do c = getc(f); while (c != '\n' && c != EOF);
+			else if (c == ' ' || c == '\t')						// increase indent
 			{
-				indent_string[i] = '\0';
-				add_token(SEMICOLON, position);
-				while (block_indent[blocks] > i)
-					add_token(BLOCK_END, position);
+				if (!new_block || i < strlen(indent.string))
+					ERROR("SyntaxError: unexpected indentation at line %d", line_no);
+				do {
+					set_indent(i++, c);
+					c = getc(f);
+				} while (c == ' ' || c == '\t');
+				set_indent(i, '\0');
+				indent.offsets[blocks] = i;
+				new_block = 0;
 			}
-			else
+			else if (new_block || i < strlen(indent.string))	// unindent and/or single-line block: end block(s)
 			{
-				while (c == ' ' || c == '\t')	// new indent
-				{
-					if (!new_indent)
-						ERROR("SyntaxError: unexpected indentation on line %d", line_no);
-					if (i >= MAX_INDENT_LENGTH)
-						ERROR("SyntaxError: indentation exceeds %d characters on line %d", MAX_INDENT_LENGTH, line_no);
-					indent_string[i++] = c;
-					c = fgetc(f);
-				}
-				indent_string[i] = '\0';
-				block_indent[blocks] = i;
-				new_indent = 0;
+				if (blocks)		// cannot replace with "while" as indent.offsets[blocks] may be undefined
+					do add_token(BLOCK_END, 0); while (--blocks && i < indent.offsets[blocks]);
+				if (i != indent.offsets[blocks])
+					ERROR("SyntaxError: mismatched indentation at line %d", line_no);
+				set_indent(i, '\0');
+				new_block = 0;
 			}
+			if (!i && c == EOF)
+				break; //return;
 			new_line = 0;
 		}
-		if (isspace(c))
+		else
+			while (c == ' ' || c == '\t')
+				c = getc(f);
+
+		if (c == '\n' || c == EOF)
 		{
-			if (c == '\n')
+			if (!parens)	// otherwise, multi-line expression (disregard indent)
 			{
+				TokenType tt = last_token_type();
+				if (tt != SEMICOLON && tt != BLOCK_START)
+					add_token(SEMICOLON, 0);
 				new_line = 1;
-				// multi-line expressions must be in parentheses
-				if (!parens && tokens[tokens_length - 1].type != BLOCK_START && tokens[tokens_length - 1].type != SEMICOLON)
-					add_token(SEMICOLON, position);
-				add_token(NEWLINE, position);
-				if (i_mode)
-					break;
+				if (i_mode && !blocks)
+					c = EOF;
 			}
+			else if (c == EOF)
+				ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
+			if (c == EOF)
+				continue;
+			add_newline();
+		}
+		else if (c == '\\')
+		{
+			c = getc(f);
+			if (c != '\n')
+				ERROR("SyntaxError: unexpected character after line continuation at line %d", line_no);
+			add_newline();
 		}
 		else if (c == '(')
-			add_token(LPAREN, position);
+		{
+			add_token(LPAREN, 0);
+			parens++;
+		}
 		else if (c == ')')
-			add_token(RPAREN, position);
+		{
+			add_token(RPAREN, 0);
+			parens--;
+		}
+	/*	else if (c == '[')
+			add_token(LBRACKET, 0);
+		else if (c == ']')
+			add_token(RBRACKET, 0);
+	*/	else if (c == ',')
+			add_token(COMMA, 0);
 		else if (c == ';')
-			add_token(SEMICOLON, position);
+			add_token(SEMICOLON, 0);
 		else if (c == ':')
 		{
-			add_token(BLOCK_START, position);
-			if (new_indent)
+			if (new_block)		// avoid nested blocks on the same line
 				ERROR("SyntaxError: illegal colon at line %d", line_no);
-			new_indent = 1;
+			add_token(BLOCK_START, 0);
+			blocks++;
+			new_block = 1;
 		}
 		else if (isalpha(c) || c == '_' || c == '$')
 		{
-			append(c);
-			while (isalnum(c = getc(f)) || c == '_' || c == '$')
+			char *value;
+			do 
+			{
 				append(c);
-			ungetc(c, f);
-
-			if (string_length - position == 5 && !strncmp(token_string + position, "print", 5))
-				add_token(PRINT_STMT, position);
-			else if (string_length - position == 2 && !strncmp(token_string + position, "if", 2))
-				add_token(IF_STMT, position);
-			else if (string_length - position == 5 && !strncmp(token_string + position, "while", 5))
-				add_token(WHILE_STMT, position);
+				c = getc(f);
+			} while (isalnum(c) || c == '_' || c == '$');
+			append('\0');
+			value = (char *)(string.value + offset);
+			if (!strcmp(value, "print"))
+				add_token(PRINT_KW, 0);
+			else if (!strcmp(value, "if"))
+				add_token(IF_KW, 0);
+			else if (!strcmp(value, "while"))
+				add_token(WHILE_KW, 0);
+			else if (!strcmp(value, "else"))
+				add_token(ELSE_KW, 0);
+			else if (!strcmp(value, "def"))
+				add_token(DEF_KW, 0);
+			else if (!strcmp(value, "global"))
+				add_token(GLOBAL_KW, 0);
 			else
-				add_token(NAME, position);
+				add_token(NAME, offset);
+			continue;
+		}
+		else if (isdigit(c) || c == '.')
+		{
+			byte dot_used = c == '.';
+			do append(c); while (isdigit(c = fgetc(f)));
+			if (!dot_used && c == '.')
+				do append(c); while (isdigit(c = fgetc(f)));
+			append('\0');
+			add_token(NUMERAL, offset);
+			continue;
 		}
 		else if (c == '"')
 		{
+			add_token(LITERAL, offset);	// add here, before eventual newlines
 			while ((c = getc(f)) != '"')
 			{
 				if (c == EOF || c == '\n')
@@ -154,8 +259,8 @@ void tokenize(FILE *f)
 				{
 					switch (c = getc(f))
 					{
-					case '\n':	// actual linebreak
-						add_token(NEWLINE, position);
+					case '\n':
+						add_newline();
 					case '\\':
 					case '"':
 						append(c);
@@ -166,7 +271,7 @@ void tokenize(FILE *f)
 					case 't':
 						append('\t');
 						break;
-					// etc
+					// \x for unicode, ...
 					case EOF:
 						ERROR("SyntaxError: unterminated string at line %d", line_no);
 					default:
@@ -177,126 +282,92 @@ void tokenize(FILE *f)
 				else
 					append(c);
 			}
-			add_token(LITERAL, position);
+			append('\0');
 		}
-		else if (c == '/')
+		else if (c == '#')
 		{
-			if ((c = getc(f)) == '/')	// single-line comment
-			{
-				while ((c = getc(f)) != '\n' && c != EOF) ;
-				ungetc(c, f);
-			}
-			else if (c == '*')			// multi-line comment
-			{
-				while ((c = getc(f)) != '*' || (c = getc(f)) != '/')
-				{
-					if (c == EOF)
-						ERROR("SyntaxError: unterminated comment at line %d", line_no);
-					if (c == '\n')
-						add_token(NEWLINE, position);
-				}
-			}
-			else						// division
-			{
-				ungetc(c, f);
-				c = '/';
-				goto division;
-			}
-		}
-		else if (isdigit(c))
-		{
-			append(c);
-			while (isdigit(c = fgetc(f)))
-				append(c);
-			ungetc(c, f);
-			add_token(NUMERAL, position);
+			/*	There are no multi-line comments, as they really don't mix with 
+				python-like indentation (unless they are force-indented too but 
+				that's ugly).
+			*/
+
+			do c = getc(f); while (c != '\n' && c != EOF);
+			continue;
 		}
 		else if (c == '=')
 		{
 			append(c);
-			if ((c = getc(f)) == '=')
+			c = getc(f);
+			if (c == '=')
 			{
 				append(c);
-				add_token(COMP_OP, position);
+				add_token(EQL_OP, offset);
 			}
 			else
 			{
-				add_token(ASSIGN_OP, position);
-				ungetc(c, f);
+				add_token(ASG_OP, offset);
+				c = ungetc(c, f);
 			}
+			append('\0');
 		}
 		else if (c == '!')
 		{
 			append(c);
-			if ((c = getc(f)) != '=')
+			c = getc(f);
+			if (c != '=')
 				ERROR("SyntaxError: unrecognized character <!> at line %d", line_no);
 			append(c);
-			add_token(COMP_OP, position);
+			append('\0');
+			add_token(EQL_OP, offset);
 		}
 		else if (c == '<' || c == '>')
 		{
 			append(c);
-			if ((c = getc(f)) == '=')
+			c = getc(f);
+			add_token(CMP_OP, offset);
+			if (c == '=')
 				append(c);
 			else
 				ungetc(c, f);
-			add_token(COMP_OP, position);
+			append('\0');
 		}
 		else if (c == '+' || c == '-')
 		{
 			append(c);
-			if ((c = getc(f)) == '=')
+			c = getc(f);
+			if (c == '=')
 			{
 				append(c);
-				add_token(ASSIGN_OP, position);
+				add_token(ASG_OP, offset);
 			}
 			else
 			{
+				add_token(ADD_OP, offset);
 				ungetc(c, f);
-				add_token(ADD_OP, position);
 			}
+			append('\0');
 		}
 		else if (c == '*' || c == '/')
 		{
-division:
 			append(c);
-			if ((c = getc(f)) == '=')
+			c = getc(f);
+			if (c == '=')
 			{
 				append(c);
-				add_token(ASSIGN_OP, position);
+				add_token(ASG_OP, offset);
 			}
 			else
 			{
+				add_token(MUL_OP, offset);
 				ungetc(c, f);
-				add_token(MULT_OP, position);
 			}
+			append('\0');
 		}
 		else
 			ERROR("SyntaxError: unrecognized character <%c> at line %d", c, line_no);
+		c = getc(f);	// where appropriate, "continue" is used to skip this instead of ungetc()
 	}
-}
 
-void tokenize_file(char *source)
-{
-	FILE *f = fopen(source, "r");
-	if (f == NULL)
-		ERROR("FileError: could not open file %s", source);
-	tokenize(f);
-	if (tokens[tokens_length - 1].type != SEMICOLON)
-		add_token(SEMICOLON, string_length);
-	while (blocks)
-		add_token(BLOCK_END, string_length);
-	add_token(END, string_length);
-}
-
-void tokenize_input()
-{
-	printf(">>> ");
-	tokenize(stdin);
-	while ((parens || blocks) && !feof(stdin))
-	{
-		printf("... ");
-		tokenize(stdin);
-	}
-	add_token(END, string_length);
+	//for (c = 0; c < tokens.length; c++)
+	//	printf("%s %s\n", tkns[tokens.array[c].type], (char *)(string.value + tokens.array[c].offset));
 }

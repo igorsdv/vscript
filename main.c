@@ -15,27 +15,32 @@ int main(int argc, char *argv[])
 	}
 	else
 		i_mode = 1;	// default to interactive mode
+	
 	vm_init();
 	if (i_mode)
 	{
-		while (!feof(stdin))
+		while (1)
 		{
-			tokens_init();
-			tokenize_input();
+			tokenize(stdin);
+			if (feof(stdin))
+				break;
 			parse();
-			vm_run();	// needs vm_reset or something
-			tokens_free();
+			vm_run();
+			tokens_reset();
 		}
 		printf("\n");
 	}
 	else
 	{
-		tokens_init();
-		tokenize_file(source);
+		FILE *f = fopen(source, "r");
+		if (f == NULL)
+			ERROR("FileError: could not open file %s", source);
+		tokenize(f);
+		fclose(f);
 		parse();
 		vm_run();
-		tokens_free();
 	}
+	tokens_free();
 	sym_free();
 	vm_free();
 	return 0;
