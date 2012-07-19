@@ -53,7 +53,7 @@ void add_newline()
 {
 	add_token(NEWLINE, 0);
 	line_no++;
-	if (i_mode)
+	if (repl_mode)
 		printf("... ");
 }
 
@@ -158,11 +158,11 @@ void tokenize(FILE *f)
 				if (tt != SEMICOLON && tt != BLOCK_START && tt != BLOCK_END)
 					add_token(SEMICOLON, 0);
 				new_line = 1;
-				if (i_mode && !blocks)
+				if (repl_mode && !blocks)
 					c = EOF;
 			}
-		//	else if (c == EOF)
-		//		ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
+			else if (c == EOF)
+				new_line = 1; // ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
 			if (c == EOF)
 				continue;
 			add_newline();
