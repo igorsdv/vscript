@@ -3,7 +3,7 @@ repl_program : block | statement*
 block : ( ( IF_KW | WHILE_KW ) expression BLOCK_START block* BLOCK_END [ ELSE_KW BLOCK_START block* BLOCK_END ] | statement | function )
 function : DEF_KW NAME LPAREN name_list RPAREN BLOCK_START block BLOCK_END
 name_list : NAME { COMMA NAME } | @
-statement : PRINT_KW expression SEMICOLON | expression SEMICOLON | SEMICOLON
+statement : ( PRINT_KW | RETURN_KW ) expression SEMICOLON | expression SEMICOLON | SEMICOLON
 expression : eql_expr | NAME ASG_OP expression
 eql_expr : cmp_expr [ EQL_OP cmp_expr ]
 cmp_expr : add_expr [ CMP_OP add_expr ]

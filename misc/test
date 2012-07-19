@@ -7,5 +7,6 @@ while x < y:
 	print y
 print(z+1)
 print y
-
-def x(a,
+a=1;b=1
+def x(a,b):
+	return a + b

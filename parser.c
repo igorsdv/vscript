@@ -209,6 +209,12 @@ void statement()
 		expression();
 		vm_writebyte(PRINT);
 	}
+	else if (token_type == RETURN_KW)
+	{
+		read_token();
+		expression();
+		vm_writebyte(POP); // vm_writebyte(RETURN);
+	}
 	else if (token_type != SEMICOLON)
 	{
 		expression();
@@ -237,9 +243,8 @@ void function()
 		ERROR("SyntaxError: missing colon at line %d", line_no);
 	read_token();
 	// handle function definition
-	block();
-	if (token_type != BLOCK_END)
-		ERROR("SyntaxError: unterminated block at line %d", line_no);
+	while (token_type != BLOCK_END)
+		block();
 	read_token();
 }
 
@@ -292,6 +297,7 @@ void block()
 		function();
 		break;
 	case PRINT_KW:
+	case RETURN_KW:
 	case NAME:
 	case LITERAL:
 	case NUMERAL:

@@ -25,7 +25,8 @@ typedef enum {
 	END,
 	NEWLINE,		// used for line number
 	PRINT_KW,
-	DEF_KW,	
+	DEF_KW,
+	RETURN_KW,
 	GLOBAL_KW,
 	IF_KW,
 	WHILE_KW,
