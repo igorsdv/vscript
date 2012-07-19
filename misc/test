@@ -8,5 +8,4 @@ while x < y:
 print(z+1)
 print y
 
-def a (a,bc):
-	print x
+x = 1; if x:

@@ -247,66 +247,61 @@ void block()
 {
 	TokenType kw_type;
 	int offset, target;
-	while (1)
+	switch (kw_type = token_type)
 	{
-		switch (kw_type = token_type)
+	case IF_KW:
+	case WHILE_KW:
+		read_token();
+		expression();
+		if (token_type != BLOCK_START)
+			ERROR("SyntaxError: missing colon at line %d", line_no);
+		vm_writebyte(JUMP_IF_FALSE);
+		offset = vm_getoffset();
+		vm_writeint(0);
+		read_token();		
+		while (token_type != BLOCK_END)
+			block();
+		if (kw_type == WHILE_KW)
 		{
-		case IF_KW:
-		case WHILE_KW:
+			vm_writebyte(JUMP_IF_TRUE);
+			vm_writeint(offset + sizeof(int));
+		}
+		read_token();
+		if (token_type == ELSE_KW)
+		{
+			int else_offset;
+			vm_writebyte(JUMP);
+			else_offset = vm_getoffset();
+			vm_writeint(0);
+			target = vm_getoffset();
 			read_token();
-			expression();
 			if (token_type != BLOCK_START)
 				ERROR("SyntaxError: missing colon at line %d", line_no);
-			vm_writebyte(JUMP_IF_FALSE);
-			offset = vm_getoffset();
-			vm_writeint(0);
 			read_token();
-			block();
-			if (token_type != BLOCK_END)	// can this even happen
-				ERROR("SyntaxError: unterminated block at line %d", line_no);
-			read_token();
-			if (kw_type == WHILE_KW)
-			{
-				vm_writebyte(JUMP);
-				vm_writeint(offset - 1);
-				target = vm_getoffset();
-			}
-			else if (token_type == ELSE_KW)
-			{
-				int else_offset;
-				vm_writebyte(JUMP);
-				else_offset = vm_getoffset();
-				vm_writeint(0);
-				target = vm_getoffset();
-				read_token();
-				if (token_type != BLOCK_START)
-					ERROR("SyntaxError: missing colon at line %d", line_no);
+			while (token_type != BLOCK_END)
 				block();
-				if (token_type != BLOCK_END)
-					ERROR("SyntaxError: unterminated block at line %d", line_no);
-				vm_writeintat(vm_getoffset(), else_offset);
-				read_token();
-			}
-			else
-				target = vm_getoffset();
-			vm_writeintat(target, offset);
-			vm_writebyte(POP);
-			break;
-		case DEF_KW:
-			function();
-			break;
-		case PRINT_KW:
-		case NAME:
-		case LITERAL:
-		case NUMERAL:
-		case LPAREN:
-		case ADD_OP:
-		case SEMICOLON:
-			statement();
-			break;
-		default:
-			return;	
+			vm_writeintat(vm_getoffset(), else_offset);
+			read_token();
 		}
+		else
+			target = vm_getoffset();
+		vm_writeintat(target, offset);
+		vm_writebyte(POP);
+		break;
+	case DEF_KW:
+		function();
+		break;
+	case PRINT_KW:
+	case NAME:
+	case LITERAL:
+	case NUMERAL:
+	case LPAREN:
+	case ADD_OP:
+	case SEMICOLON:
+		statement();
+		break;
+	default:
+		ERROR("SyntaxError: unterminated block at line %d", line_no);
 	}
 }
 
@@ -315,8 +310,22 @@ void parse()
 	offset = -1;
 	line_no = 1;
 	read_token();
-	block();
-	if (token_type != END)
-		ERROR("SyntaxError: invalid syntax at line %d", line_no);
+	if (i_mode)
+	{
+		if (token_type == IF_KW || token_type == WHILE_KW || token_type == DEF_KW)
+			block();
+		else
+			while (token_type != END)
+			{
+				if (token_type == IF_KW || token_type == WHILE_KW || token_type == DEF_KW)
+					break;
+				statement();
+			}
+		if (token_type != END)
+			ERROR("ReplError: invalid statement or block at line %d", line_no);
+	}
+	else
+		while (token_type != END)
+			block();
 	vm_writebyte(STOP);
 }

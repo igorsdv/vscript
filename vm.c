@@ -1,14 +1,13 @@
 #include "main.h"
 #define SIZE_INCREMENT 256
 
-byte *program;
-int program_length = 0;
-int program_size = 0;
-int offset;
+byte *program = 0;
+int program_length, program_size, offset;
 
-void vm_init()
+void vm_reset()
 {
-	program = malloc(program_size = SIZE_INCREMENT);
+	program = realloc(program, program_size = SIZE_INCREMENT);
+	program_length = 0;
 }
 
 void vm_free()

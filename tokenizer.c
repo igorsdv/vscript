@@ -54,12 +54,7 @@ void add_newline()
 	add_token(NEWLINE, 0);
 	line_no++;
 	if (i_mode)
-		puts("... ");
-}
-
-void tokens_reset()
-{
-	tokens.length = 0;
+		printf("... ");
 }
 
 void tokens_free()
@@ -78,16 +73,6 @@ TokenType last_token_type()
 			return tokens.array[i].type;
 	return -1;
 }
-
-/*
-	TokenType next_token_type(int index)
-	{
-		while (++index < tokens.length)
-			if (tokens.array[index].type != NEWLINE)
-				return tokens.array[index].type;
-		return 0;
-	}
-*/
 
 TokenType get_token_type(int index)
 {
@@ -117,6 +102,9 @@ void tokenize(FILE *f)
 	byte new_block = 1;		// indent increase possible
 	int parens = 0;
 	int blocks = 0;
+
+	tokens.length = 0;
+	string.length = 0;
 
 	set_indent(0, '\0');
 	indent.offsets[0] = 0;
@@ -167,14 +155,14 @@ void tokenize(FILE *f)
 			if (!parens)	// otherwise, multi-line expression (disregard indent)
 			{
 				TokenType tt = last_token_type();
-				if (tt != SEMICOLON && tt != BLOCK_START)
+				if (tt != SEMICOLON && tt != BLOCK_START && tt != BLOCK_END)
 					add_token(SEMICOLON, 0);
 				new_line = 1;
 				if (i_mode && !blocks)
 					c = EOF;
 			}
-			else if (c == EOF)
-				break;//ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
+		//	else if (c == EOF)
+		//		ERROR("SyntaxError: unterminated parenthetical expression at line %d", line_no);
 			if (c == EOF)
 				continue;
 			add_newline();
