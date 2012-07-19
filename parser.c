@@ -264,11 +264,13 @@ void block()
 {
 	TokenType kw_type;
 	int offset, target;
+	int while_start;
 	switch (kw_type = token_type)
 	{
 	case IF_KW:
 	case WHILE_KW:
 		read_token();
+		while_start = vm_getoffset();
 		expression();
 		if (token_type != BLOCK_START)
 			ERROR("SyntaxError: missing colon at line %d", line_no);
@@ -280,8 +282,9 @@ void block()
 			block();
 		if (kw_type == WHILE_KW)
 		{
-			vm_writebyte(JUMP_IF_TRUE);
-			vm_writeint(offset + sizeof(int));
+			// re-evaluate the condition in the while loop
+			vm_writebyte(JUMP);
+			vm_writeint(while_start);
 		}
 		read_token();
 		if (token_type == ELSE_KW)
@@ -303,7 +306,8 @@ void block()
 		else
 			target = vm_getoffset();
 		vm_writeintat(target, offset);
-		vm_writebyte(POP);
+		// In the original VM design, JUMP* implicitly popped.
+		// vm_writebyte(POP);
 		break;
 	case DEF_KW:
 		function();
