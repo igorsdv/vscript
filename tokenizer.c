@@ -39,7 +39,7 @@ void set_indent(int index, char c)
 	indent.string[index] = c;
 }
 
-char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "RETURN_KW", "GLOBAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
+char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "RETURN_KW", "GLOBAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "NOT_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
 
 void add_token(TokenType type, int offset)
 {
@@ -210,7 +210,9 @@ void tokenize(FILE *f)
 			} while (isalnum(c) || c == '_' || c == '$');
 			append('\0');
 			value = (char *)(string.value + offset);
-			if (!strcmp(value, "print"))
+			if (!strcmp(value, "not"))
+				add_token(NOT_OP, 0);
+			else if (!strcmp(value, "print"))
 				add_token(PRINT_KW, 0);
 			else if (!strcmp(value, "if"))
 				add_token(IF_KW, 0);

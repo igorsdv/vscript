@@ -8,5 +8,6 @@ expression : eql_expr | NAME ASG_OP expression
 eql_expr : cmp_expr [ EQL_OP cmp_expr ]
 cmp_expr : add_expr [ CMP_OP add_expr ]
 add_expr : mul_expr { ADD_OP mul_expr }
-mul_expr : unr_expr { MUL_OP unr_expr }
+mul_expr : not_expr { MUL_OP not_expr }
+not_expr : NOT_OP not_expr | unr_expr
 unr_expr : NAME [ LPAREN name_list RPAREN ] | LITERAL | NUMERAL | LPAREN expression RPAREN | ADD_OP unr_expr

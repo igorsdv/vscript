@@ -100,14 +100,26 @@ void unr_expr()
 	}
 }
 
+void not_expr()
+{
+	if (token_type == NOT_OP)
+	{
+		read_token();
+		not_expr();
+		vm_writebyte(UNARY_NOT);
+	}
+	else
+		unr_expr();
+}
+
 void mul_expr()
 {
-	unr_expr();
+	not_expr();
 	while (token_type == MUL_OP)
 	{
 		char oper = *token_value();
 		read_token();
-		unr_expr();
+		not_expr();
 		if (oper == '*')
 			vm_writebyte(MULT);
 		else if (oper == '/')
@@ -302,6 +314,7 @@ void block()
 	case LITERAL:
 	case NUMERAL:
 	case LPAREN:
+	case NOT_OP:
 	case ADD_OP:
 	case SEMICOLON:
 		statement();
