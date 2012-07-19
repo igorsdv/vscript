@@ -4,19 +4,19 @@ int main(int argc, char *argv[])
 {
 	char *source;
 
-	i_mode = 0;
+	repl_mode = 0;
 	if (argc > 1)
 	{
 		// put inside while loop for other options
-		if (!strcmp(argv[1], "-i") || !strcmp(argv[1], "--interactive"))
-			i_mode = 1;
+		if (!strcmp(argv[1], "-i") || !strcmp(argv[1], "--repl"))
+			repl_mode = 1;
 		else
 			source = argv[1];
 	}
 	else
-		i_mode = 1;	// default to interactive mode
+		repl_mode = 1;	// default to interactive mode
 	
-	if (i_mode)
+	if (repl_mode)
 	{
 		while (1)
 		{

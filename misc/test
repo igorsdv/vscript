@@ -8,4 +8,4 @@ while x < y:
 print(z+1)
 print y
 
-x = 1; if x:
+def x(a,

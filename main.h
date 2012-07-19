@@ -8,7 +8,7 @@ typedef unsigned char byte;
 #define MAX_NESTED_BLOCKS 256
 #define MAX_NAME_LENGTH 255
 
-int i_mode;		// interactive mode
+int repl_mode;	// interactive mode
 int line_no;	// line number
 
 #define ERROR(...) \

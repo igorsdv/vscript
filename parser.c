@@ -310,7 +310,7 @@ void parse()
 	offset = -1;
 	line_no = 1;
 	read_token();
-	if (i_mode)
+	if (repl_mode)
 	{
 		if (token_type == IF_KW || token_type == WHILE_KW || token_type == DEF_KW)
 			block();
