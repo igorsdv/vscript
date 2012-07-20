@@ -274,7 +274,7 @@ void block()
 		expression();
 		if (token_type != BLOCK_START)
 			ERROR("SyntaxError: missing colon at line %d", line_no);
-		vm_writebyte(JUMP_IF_FALSE);
+		vm_writebyte(POP_JUMP_IF_FALSE);
 		offset = vm_getoffset();
 		vm_writeint(0);
 		read_token();		
@@ -287,7 +287,7 @@ void block()
 			vm_writeint(while_start);
 		}
 		read_token();
-		if (token_type == ELSE_KW)
+		if (token_type == ELSE_KW && kw_type == IF_KW)
 		{
 			int else_offset;
 			vm_writebyte(JUMP);
@@ -306,8 +306,6 @@ void block()
 		else
 			target = vm_getoffset();
 		vm_writeintat(target, offset);
-		// In the original VM design, JUMP* implicitly popped.
-		// vm_writebyte(POP);
 		break;
 	case DEF_KW:
 		function();

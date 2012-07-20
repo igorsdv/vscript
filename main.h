@@ -58,15 +58,15 @@ typedef enum {
 
 typedef enum {
 	STOP,
-	SET_LINE,		// SET_LINE (int line_no)
+	SET_LINE,			// SET_LINE (int line_no)
 	POP,
-	PRINT,			// print and pop
-	STORE,			// STORE (int symbol)
-	LOAD,			// LOAD (int symbol)
-	LOAD_CONST,		// LOAD_CONST (byte type, ...)
-	JUMP,			// JUMP (int target)
-	JUMP_IF_TRUE,
-	JUMP_IF_FALSE,
+	PRINT,				// print and pop
+	STORE,				// STORE (int symbol)
+	LOAD,				// LOAD (int symbol)
+	LOAD_CONST,			// LOAD_CONST (byte type, ...)
+	JUMP,				// JUMP (int target)
+	POP_JUMP_IF_TRUE,	// jump and pop
+	POP_JUMP_IF_FALSE,
 	UNARY_PLUS,
 	UNARY_MINUS,
 	UNARY_NOT,
