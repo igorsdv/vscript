@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -12,8 +13,7 @@ int repl_mode;	// interactive mode
 int line_no;	// line number
 
 #define ERROR(...) \
-    do \
-    { \
+    do { \
         fprintf(stderr, ##__VA_ARGS__); \
         putc('\n', stderr); \
         exit(1); \
@@ -52,8 +52,10 @@ typedef enum {
 
 typedef enum {
 	NONE,
-	NUMBER,
-	STRING
+	INTEGER,
+	FLOAT,
+	STRING,
+	FUNCTION
 } ObjectType;
 
 typedef enum {
@@ -84,21 +86,8 @@ typedef enum {
 
 /* structs */
 
-/*typedef struct {
-	TokenType type;
-	int start;
-	int length;
-} Token;*/
-
-typedef struct object
-{
+typedef struct {
 	ObjectType type;
 	byte *value;	// array of bytes
-	int size;		// size of array
 	int refcount;
 } Object;
-
-typedef struct node {
-	struct node *next;
-	Object *object;
-} Node;

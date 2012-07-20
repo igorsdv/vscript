@@ -95,8 +95,12 @@ void vm_run()
 				case NONE:
 					printf(" NONE\n");
 					break;
-				case NUMBER:
-					printf(" NUMBER %s\n", vm_read(0));
+				case INTEGER:
+					printf(" INTEGER %s\n", vm_read(0));
+					offset += strlen(vm_read(0)) + 1;
+					break;
+				case FLOAT:
+					printf(" FLOAT %s\n", vm_read(0));
 					offset += strlen(vm_read(0)) + 1;
 					break;
 				case STRING:

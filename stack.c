@@ -1,32 +1,29 @@
 #include "main.h"
+#define STACK_ARRAY_ALLOC_SIZE 256
 
-/*node_t *top = NULL;
+static struct {
+	Object **array;
+	int size;
+	int length;
+} stack = { 0, 0, 0 };
 
-void stack_push(int object)
+void stack_push(Object *obj)
 {
-	node_t *node = (node_t*) malloc(sizeof(node_t));
-	node.object = object;
-	node->next = top;
-	top = node;
+	if (stack.length == stack.size)
+		stack.array = realloc(stack.array, (stack.size += STACK_ARRAY_ALLOC_SIZE) * sizeof(void *));
+	stack.array[stack.length++] = obj;
 }
 
-int stack_pop()
+Object *stack_pop()
 {
-	node_t *node;
-	int object;
-
-	if (top == NULL)
-		ERROR("popStack: stack empty");
-	node = top;
-	object = node.object;
-	top = node->next;
-	free(node);
-	return object;
+	if (!stack.length)
+		ERROR("StackError: stack empty");
+	return stack.array[--stack.length];
 }
 
-int stack_peek()
+Object *stack_peek()
 {
-	if (top == NULL)
-		ERROR("peekStack: stack empty");
-	return top.object;
-}*/
+	if (!stack.length)
+		ERROR("StackError: stack empty");
+	return stack.array[stack.length - 1];
+}

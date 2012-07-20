@@ -86,7 +86,7 @@ void unr_expr()
 		else if (token_type == NUMERAL)
 		{
 			vm_writebyte(LOAD_CONST);
-			vm_writebyte(NUMBER);
+			vm_writebyte(strchr(str, '.') ? FLOAT : INTEGER);
 			vm_write(str, strlen(str) + 1);
 			read_token();
 		}
