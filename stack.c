@@ -1,5 +1,5 @@
 #include "main.h"
-#define STACK_ARRAY_ALLOC_SIZE 256
+#define STACK_ARRAY_ALLOC_SIZE 64
 
 static struct {
 	Object **array;

@@ -181,36 +181,49 @@ void eql_expr()
 
 void expression()
 {
-	if (token_type == NAME && next_token_type() == ASG_OP)
+	switch (token_type)
 	{
-		char *ident, oper;
+	case NAME:
+		if (next_token_type() == ASG_OP)
+		{
+			char *ident, oper;
 
-		ident = token_value();
-		read_token();
-		oper = *token_value();
-		if (oper != '=')	// compound assignment
-		{
-			vm_writebyte(LOAD);
-			vm_writeint(sym_lookup(ident, scope));
+			ident = token_value();
+			read_token();
+			oper = *token_value();
+			if (oper != '=')	// compound assignment
+			{
+				vm_writebyte(LOAD);
+				vm_writeint(sym_lookup(ident, scope));
+			}
+			read_token();
+			expression();
+			if (oper != '=')
+			{
+				if (oper == '+')
+					vm_writebyte(ADD);
+				else if (oper == '-')
+					vm_writebyte(SUB);
+				else if (oper == '*')
+					vm_writebyte(MULT);
+				else if (oper == '/')
+					vm_writebyte(DIV);
+			}
+			vm_writebyte(STORE);
+			vm_writeint(sym_addlookup(ident, scope));
+			break;
 		}
-		read_token();
-		expression();
-		if (oper != '=')
-		{
-			if (oper == '+')
-				vm_writebyte(ADD);
-			else if (oper == '-')
-				vm_writebyte(SUB);
-			else if (oper == '*')
-				vm_writebyte(MULT);
-			else if (oper == '/')
-				vm_writebyte(DIV);
-		}
-		vm_writebyte(STORE);
-		vm_writeint(sym_addlookup(ident, scope));
-	}	
-	else
+	case LPAREN:
+	case LITERAL:
+	case NUMERAL:
+	case ADD_OP:
+	case NOT_OP:
 		eql_expr();
+		break;
+	default:
+		vm_writebyte(LOAD_CONST);
+		vm_writebyte(NONE);
+	}
 }
 
 void statement()
@@ -227,7 +240,7 @@ void statement()
 		expression();
 		vm_writebyte(POP); // vm_writebyte(RETURN);
 	}
-	else if (token_type != SEMICOLON)
+	else
 	{
 		expression();
 		vm_writebyte(POP);

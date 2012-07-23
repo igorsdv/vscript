@@ -71,7 +71,7 @@ TokenType last_token_type()
 	while (i-- > 0)
 		if (tokens.array[i].type != NEWLINE)
 			return tokens.array[i].type;
-	return -1;
+	return 0;
 }
 
 TokenType get_token_type(int index)
@@ -155,7 +155,7 @@ void tokenize(FILE *f)
 			if (!parens)	// otherwise, multi-line expression (disregard indent)
 			{
 				TokenType tt = last_token_type();
-				if (tt != SEMICOLON && tt != BLOCK_START && tt != BLOCK_END)
+				if (tt != SEMICOLON && tt != BLOCK_START && tt != BLOCK_END && tt != END)
 					add_token(SEMICOLON, 0);
 				new_line = 1;
 				if (repl_mode && !blocks)
