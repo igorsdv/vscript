@@ -9,7 +9,10 @@ typedef unsigned char byte;
 #define MAX_NESTED_BLOCKS 256
 #define MAX_NAME_LENGTH 255
 
-int repl_mode;	// interactive mode
+struct {
+	byte repl;
+	byte allow_empty_blocks;
+} flags;
 int line_no;	// line number
 
 #define ERROR(...) \

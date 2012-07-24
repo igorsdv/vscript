@@ -50,8 +50,7 @@ void add_token(TokenType type, int offset)
 void add_newline()
 {
 	add_token(NEWLINE, 0);
-	line_no++;
-	if (repl_mode)
+	if (line_no++ && flags.repl)
 		printf("... ");
 }
 
@@ -121,6 +120,7 @@ void tokenize(FILE *f)
 		if (new_line)
 		{
 			int i;
+
 			for (i = 0; c == indent.string[i]; i++)
 				c = getc(f);
 			if (c == '#')										// disregard indent before comments
@@ -148,7 +148,8 @@ void tokenize(FILE *f)
 			}
 			if (!i && c == EOF)
 				break;
-			add_newline();
+			add_token(NEWLINE, 0);
+			line_no++;
 			new_line = 0;
 		}
 		else
@@ -163,13 +164,17 @@ void tokenize(FILE *f)
 				if (tt != SEMICOLON && tt != BLOCK_START && tt != BLOCK_END && tt != 0)	// 0 actually means "start" here
 					add_token(SEMICOLON, 0);
 				new_line = 1;
-				if (repl_mode && !blocks)
+				if (flags.repl && !blocks)
 					c = EOF;
 			}
 			else if (c == EOF)
 				new_line = 1; // leave error handling to parser for more precise error messages
 			if (c == EOF)
 				continue;
+			if (!new_line)
+				add_newline();
+			else if (flags.repl)
+				printf("... ");
 		}
 		else if (c == '\\')
 		{

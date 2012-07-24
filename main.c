@@ -2,21 +2,27 @@
 
 int main(int argc, char *argv[])
 {
-	char *source;
+	int i;
+	byte files = 0;
 
-	repl_mode = 0;
-	if (argc > 1)
+	flags.repl = 0;
+	flags.allow_empty_blocks = 0;
+
+	for (i = 1; i < argc; i++)
 	{
-		// put inside while loop for other options
-		if (!strcmp(argv[1], "-i") || !strcmp(argv[1], "--repl"))
-			repl_mode = 1;
+		if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--repl"))
+			flags.repl = 1;
+		else if (!strcmp(argv[i], "--allow-empty-blocks"))
+			flags.allow_empty_blocks = 1;
+		if (*argv[i] == '-')
+			*argv[i] = '\0';
 		else
-			source = argv[1];
+			files = 1;
 	}
-	else
-		repl_mode = 1;	// default to interactive mode
+	if (!files)
+		flags.repl = 1;		// default to interactive mode
 	
-	if (repl_mode)
+	if (flags.repl)
 	{
 		while (1)
 		{
@@ -33,13 +39,22 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		FILE *f = fopen(source, "r");
-		if (f == NULL)
-			ERROR("FileError: could not open file %s", source);
-		tokenize(f);
-		fclose(f);
-		parse();
-		dis();
+		FILE *f;
+
+		for (i = 1; i < argc; i++)
+		{
+			if (*argv[i] == '\0')
+				continue;
+			f = fopen(argv[i], "r");
+			if (f == NULL)
+				ERROR("FileError: could not open file %s", argv[i]);
+			tokenize(f);
+			fclose(f);
+			parse();
+			dis();
+			reset_tokens();	
+			reset_vm();
+		}
 	}
 
 	return 0;

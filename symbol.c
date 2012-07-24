@@ -37,16 +37,13 @@ Symbol add_symbol(char *sym, int s, byte nonlocal)
 	}
 	scope = (Scope *)(scopes.array + s * sizeof(Scope));
 	for (i = 0; i < scope->length; i++)
-	{
 		if (!strcmp(sym, scope->symbols[i].value))
 		{
-			printf("%s: %d %d %s %d\n", sym, s, i, scope->symbols[i].value, scope->symbols[i].nonlocal);
 			if (scope->symbols[i].nonlocal)
 				return add_symbol(sym, s - 1, 0);
 			else
 				return make_symbol(s, i);
 		}
-	}
 	if (scope->length == scope->size)
 	{
 		scope->symbols = realloc(scope->symbols, (scope->size + SYMBOL_ARRAY_ALLOC_SIZE) * sizeof(void *));

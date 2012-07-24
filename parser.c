@@ -323,6 +323,8 @@ void function()
 	if (p.token_type != BLOCK_START)
 		ERROR("SyntaxError: missing colon at line %d", line_no);
 	read_token();
+	if (!flags.allow_empty_blocks && p.token_type == BLOCK_END)
+		ERROR("SyntaxError: empty function block at line %d", line_no);
 	while (p.token_type != BLOCK_END)
 		block();
 	write_byte(LOAD_CONST);		// in case there was no return statement
@@ -351,7 +353,9 @@ void block()
 		write_byte(POP_JUMP_IF_FALSE);
 		jump_ptr = get_offset();
 		write_int(0);
-		read_token();		
+		read_token();
+		if (!flags.allow_empty_blocks && p.token_type == BLOCK_END)
+			ERROR("SyntaxError: empty block at line %d", line_no);	
 		while (p.token_type != BLOCK_END)
 			block();
 		if (kw_type == WHILE_KW)
@@ -373,6 +377,8 @@ void block()
 			if (p.token_type != BLOCK_START)
 				ERROR("SyntaxError: missing colon at line %d", line_no);
 			read_token();
+			if (!flags.allow_empty_blocks && p.token_type == BLOCK_END)
+				ERROR("SyntaxError: empty block at line %d", line_no);
 			while (p.token_type != BLOCK_END)
 				block();
 			write_int_at(get_offset(), else_jump_ptr);
@@ -406,7 +412,7 @@ void parse()
 	p.offset = -1;
 	p.scope = 0;
 	read_token();
-	if (repl_mode)
+	if (flags.repl)
 	{
 		if (p.token_type == IF_KW || p.token_type == WHILE_KW || p.token_type == DEF_KW)
 			block();

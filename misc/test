@@ -1,3 +1,4 @@
+def g():
 def f(a, b):
 	nonlocal x = a
 	y = b
