@@ -27,7 +27,7 @@ typedef enum {
 	PRINT_KW,
 	DEF_KW,
 	RETURN_KW,
-	GLOBAL_KW,
+	NONLOCAL_KW,
 	IF_KW,
 	WHILE_KW,
 	ELSE_KW,
@@ -52,8 +52,8 @@ typedef enum {
 
 typedef enum {
 	NONE,
-	INTEGER,
-	FLOAT,
+	INTEGER,	// long
+	FLOAT,		// double
 	STRING,
 	FUNCTION
 } ObjectType;
@@ -63,9 +63,11 @@ typedef enum {
 	SET_LINE,			// SET_LINE (int line_no)
 	POP,
 	PRINT,				// print and pop
-	STORE,				// STORE (int symbol)
-	LOAD,				// LOAD (int symbol)
+	STORE,				// STORE (Symbol s)
+	LOAD,				// LOAD (Symbol s)
 	LOAD_CONST,			// LOAD_CONST (byte type, ...)
+	CALL_FUNCTION,		// CALL_FUNCTION (int argc)
+	RETURN_VALUE,
 	JUMP,				// JUMP (int target)
 	POP_JUMP_IF_TRUE,	// jump and pop
 	POP_JUMP_IF_FALSE,
@@ -88,6 +90,42 @@ typedef enum {
 
 typedef struct {
 	ObjectType type;
-	byte *value;	// array of bytes
+	void *value;
 	int refcount;
 } Object;
+
+typedef struct {
+	int argc;
+	int offset;
+} Function;
+
+typedef struct {
+	int scope;
+	int offset;
+} Symbol;
+
+/* prototypes */
+
+void tokenize(FILE *);
+void reset_tokens();
+
+void parse();
+
+#define write_string(x) write_bytes(x, strlen(x) + 1)
+void write_bytes(void *, int);
+void write_byte(byte);
+void write_int(int);
+void write_int_at(int, int);
+void reset_vm();
+void run_vm();
+void dis();
+
+#define get_symbol(a, b) add_symbol(a, b, 0)
+Symbol add_symbol(char *, int, byte);
+
+Object *new_object(ObjectType, void *);
+void collect_object(Object *);
+
+void push_object(Object *);
+Object *pop_stack();
+Object *peek_stack();

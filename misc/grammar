@@ -3,13 +3,14 @@ repl_program : block | statement*
 block : if_block | while_block | statement | function
 if_block : IF_KW expression BLOCK_START block* BLOCK_END [ ELSE_KW BLOCK_START block* BLOCK_END ]
 while_block : IF_KW expression BLOCK_START block* BLOCK_END
-function : DEF_KW NAME LPAREN name_list RPAREN BLOCK_START block* BLOCK_END
-name_list : NAME [ COMMA name_list ] | @
-statement : ( PRINT_KW | RETURN_KW ) expression SEMICOLON | expression SEMICOLON
-expression : eql_expr | NAME ASG_OP expression | @
+function : DEF_KW NAME LPAREN [ name_list ] RPAREN BLOCK_START block* BLOCK_END
+name_list : NAME [ COMMA name_list ]
+statement : [ PRINT_KW | RETURN_KW ] [ expression ] SEMICOLON | NONLOCAL_KW NAME [ assignment ] SEMICOLON
+expression : eql_expr | NAME assignment
+assignment : ASG_OP expression
 eql_expr : cmp_expr [ EQL_OP cmp_expr ]
 cmp_expr : add_expr [ CMP_OP add_expr ]
 add_expr : mul_expr { ADD_OP mul_expr }
 mul_expr : not_expr { MUL_OP not_expr }
 not_expr : NOT_OP not_expr | unr_expr
-unr_expr : NAME [ LPAREN expression { COMMA expression } RPAREN ] | LITERAL | NUMERAL | LPAREN expression RPAREN | ADD_OP unr_expr
+unr_expr : NAME [ LPAREN [ expression { COMMA expression } ] RPAREN ] | LITERAL | NUMERAL | LPAREN [ expression ] RPAREN | ADD_OP unr_expr

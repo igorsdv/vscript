@@ -1,68 +1,60 @@
 #include "main.h"
-#define SIZE_INCREMENT 64
+#define SYMBOL_ARRAY_ALLOC_SIZE 64
+#define SCOPE_ARRAY_ALLOC_SIZE 64
 
-// int s is scope, assume s < MAX_NESTED_BLOCKS
+typedef struct {
+	struct {
+		char *value;
+		byte nonlocal;
+	} *symbols;
+	int size;
+	int length;
+} Scope;
 
-char **symbols[MAX_NESTED_BLOCKS] = { 0 };
-int symbols_length[MAX_NESTED_BLOCKS] = { 0 };
-int symbols_size[MAX_NESTED_BLOCKS] = { 0 };
+struct {
+	Scope *array;
+	int size;
+} scopes = { 0, 0 };
 
-void sym_clear_scope(int s)
+Symbol make_symbol(int scope, int offset)
 {
-	while (symbols_length[s])
-		free(symbols[s][--symbols_length[s]]);
+	Symbol s = { scope, offset };
+	return s;
 }
 
-void sym_free()
+Symbol add_symbol(char *sym, int s, byte nonlocal)
 {
+	Scope *scope;
 	int i;
 
-	for (i = 0; i < MAX_NESTED_BLOCKS; i++)
+	if (s < 0)
+		ERROR("ScopeError: invalid nonlocal symbol <%s> at line %d", sym, line_no);
+	if (s >= scopes.size)
 	{
-		sym_clear_scope(i);
-		free(symbols[i]);
+		scopes.array = realloc(scopes.array, (scopes.size + SCOPE_ARRAY_ALLOC_SIZE) * sizeof(Scope));
+		memset((void *)(scopes.array + scopes.size * sizeof(Scope)), 0, SCOPE_ARRAY_ALLOC_SIZE * sizeof(Scope));
+		scopes.size += SCOPE_ARRAY_ALLOC_SIZE;
 	}
-}
-
-int sym_lookup(char *sym, int s)
-{
-	do
+	scope = (Scope *)(scopes.array + s * sizeof(Scope));
+	for (i = 0; i < scope->length; i++)
 	{
-		int i;
-
-		for (i = 0; i < symbols_length[s]; i++)
+		if (!strcmp(sym, scope->symbols[i].value))
 		{
-			if (!strcmp(sym, symbols[s][i]))
-				return i;
+			printf("%s: %d %d %s %d\n", sym, s, i, scope->symbols[i].value, scope->symbols[i].nonlocal);
+			if (scope->symbols[i].nonlocal)
+				return add_symbol(sym, s - 1, 0);
+			else
+				return make_symbol(s, i);
 		}
-	} while (s--);
-	ERROR("NameError: undefined variable '%s' at line %d", sym, line_no);
-	return 0;
-}
-
-int sym_add(char *sym, int s)	// might not be needed; merge with sym_addlookup
-{
-	if (symbols_length[s] == symbols_size[s])
-		symbols[s] = realloc(symbols[s], symbols_size[s] += SIZE_INCREMENT);	// will malloc if null
-	symbols[s][symbols_length[s]] = malloc(strlen(sym) + 1);
-	strcpy(symbols[s][symbols_length[s]], sym);
-	return symbols_length[s]++;
-}
-
-int sym_addlookup(char *sym, int s)
-{
-    int scope = s;
-
-    do
+	}
+	if (scope->length == scope->size)
 	{
-		int i;
-
-		for (i = 0; i < symbols_length[s]; i++)
-		{
-			if (!strcmp(sym, symbols[s][i]))
-				return i;
-		}
-	} while (s--);
-    return sym_add(sym, scope);
+		scope->symbols = realloc(scope->symbols, (scope->size + SYMBOL_ARRAY_ALLOC_SIZE) * sizeof(void *));
+		memset((void *)(scope->symbols + scope->size * sizeof(void *)), 0, SYMBOL_ARRAY_ALLOC_SIZE * sizeof(void *));
+		scope->size += SYMBOL_ARRAY_ALLOC_SIZE;
+	}
+	scope->symbols[scope->length].value = malloc(strlen(sym) + 1);
+	strcpy(scope->symbols[scope->length].value, sym);
+	scope->symbols[scope->length].nonlocal = nonlocal;
+	return nonlocal ? add_symbol(sym, s - 1, 0) : make_symbol(s, scope->length++);
 }
-

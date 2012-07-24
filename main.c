@@ -21,12 +21,13 @@ int main(int argc, char *argv[])
 		while (1)
 		{
 			printf(">>> ");
-			vm_reset();
 			tokenize(stdin);
 			if (feof(stdin))
-				goto finally;
+				break;
 			parse();
-			vm_run();
+			dis();
+			reset_tokens();	
+			reset_vm();
 		}
 		printf("\n");
 	}
@@ -35,15 +36,11 @@ int main(int argc, char *argv[])
 		FILE *f = fopen(source, "r");
 		if (f == NULL)
 			ERROR("FileError: could not open file %s", source);
-		vm_reset();
 		tokenize(f);
 		fclose(f);
 		parse();
-		vm_run();
+		dis();
 	}
-finally:
-	tokens_free();
-	sym_free();
-	vm_free();
+
 	return 0;
 }
