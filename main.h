@@ -12,6 +12,7 @@ typedef unsigned char byte;
 struct {
 	byte repl;
 	byte allow_empty_blocks;
+	byte bytecode;
 } flags;
 int line_no;	// line number
 

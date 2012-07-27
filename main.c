@@ -7,11 +7,14 @@ int main(int argc, char *argv[])
 
 	flags.repl = 0;
 	flags.allow_empty_blocks = 0;
+	flags.bytecode = 0;
 
 	for (i = 1; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--repl"))
 			flags.repl = 1;
+		else if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--bytecode"))
+			flags.bytecode = 1;
 		else if (!strcmp(argv[i], "--allow-empty-blocks"))
 			flags.allow_empty_blocks = 1;
 		if (*argv[i] == '-')
@@ -31,7 +34,10 @@ int main(int argc, char *argv[])
 			if (feof(stdin))
 				break;
 			parse();
-			dis();
+			if (flags.bytecode)
+				dis();
+			else
+				run_vm();
 			reset_tokens();	
 			reset_vm();
 		}
@@ -51,8 +57,10 @@ int main(int argc, char *argv[])
 			tokenize(f);
 			fclose(f);
 			parse();
-			// dis();
-			run_vm();
+			if (flags.bytecode)
+				dis();
+			else
+				run_vm();
 			reset_tokens();	
 			reset_vm();
 		}
