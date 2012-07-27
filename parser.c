@@ -1,6 +1,6 @@
 #include "main.h"
 
-static struct {
+struct {
 	int offset;
 	int scope;
 	TokenType token_type;
@@ -59,7 +59,7 @@ void unr_expr()
 	}
 	else if (p.token_type == NAME)
 	{
-		Symbol s = get_symbol(token_value(), p.scope);
+		Symbol s = lookup_symbol(token_value(), p.scope);
 		read_token();
 		if (p.token_type == LPAREN)
 		{
@@ -98,10 +98,9 @@ void unr_expr()
 	}
 	else if (p.token_type == LITERAL)
 	{
-		char *str = token_value();
 		write_byte(LOAD_CONST);
 		write_byte(STRING);
-		write_string(str);
+		write_string(token_value());
 		read_token();
 	}
 	else
@@ -187,14 +186,20 @@ void eql_expr()
 	}
 }
 
-void assignment(Symbol s)
+void assignment()
 {
-	char oper = *token_value();
+	Symbol s;
+	char oper, *str = token_value();
+	read_token();
+	oper = *token_value();
 	if (oper != '=')	// compound assignment
 	{
+		s = lookup_symbol(str, p.scope);
 		write_byte(LOAD);
 		write_bytes(&s, sizeof(Symbol));
 	}
+	else
+		s = get_symbol(str, p.scope);
 	read_token();
 	expression();
 	if (oper != '=')
@@ -216,11 +221,7 @@ void expression()
 {
 
 	if (p.token_type == NAME && next_token_type() == ASG_OP)
-	{
-		Symbol s = get_symbol(token_value(), p.scope);
-		read_token();
-		assignment(s);
-	}
+		assignment();
 	else
 		eql_expr();
 }
@@ -229,17 +230,16 @@ void statement()
 {
 	TokenType kw_type = p.token_type;
 
-	if (kw_type == NONLOCAL_KW)
+	if (kw_type == GLOBAL_KW || kw_type == LOCAL_KW)
 	{
-		Symbol s;
-
-		read_token();
-		if (p.token_type != NAME)
-			ERROR("SyntaxError: invalid nonlocal name declaration at line %d", line_no);
-		s = add_symbol(token_value(), p.scope, 1);
-		read_token();
-		if (p.token_type == ASG_OP)
-			assignment(s);
+		byte global = kw_type == GLOBAL_KW;
+		do {
+			read_token();
+			if (p.token_type != NAME)
+				ERROR("SyntaxError: invalid declaration on line %d", line_no);
+			(void)add_symbol(token_value(), p.scope, global);
+			read_token();
+		} while (p.token_type == COMMA);
 	}
 	else
 	{
@@ -275,7 +275,7 @@ void name_list(int *argc)
 
 	if (p.token_type != NAME)
 		ERROR("SyntaxError: invalid function argument list at line %d", line_no);
-	s = get_symbol(token_value(), p.scope);
+	s = add_symbol(token_value(), p.scope, 0);
 	read_token();
 	if (p.token_type == COMMA)
 	{
@@ -309,7 +309,7 @@ void function()
 	jump_ptr = get_offset();
 	write_int(0);		
 	write_int_at(get_offset(), offset_ptr);
-	p.scope++;
+	add_scope(++p.scope);
 	read_token();
 	if (p.token_type != LPAREN)
 		ERROR("SyntaxError: invalid function definition at line %d", line_no);
@@ -332,7 +332,7 @@ void function()
 	write_byte(RETURN_VALUE);
 	write_int_at(get_offset(), jump_ptr);
 	read_token();
-	p.scope--;
+	reset_scope(p.scope--);
 }
 
 void block()
@@ -391,7 +391,8 @@ void block()
 		break;
 	case PRINT_KW:
 	case RETURN_KW:
-	case NONLOCAL_KW:
+	case GLOBAL_KW:
+	case LOCAL_KW:
 	case NAME:
 	case LITERAL:
 	case NUMERAL:
@@ -410,7 +411,7 @@ void parse()
 {
 	line_no = 0;
 	p.offset = -1;
-	p.scope = 0;
+	add_scope(p.scope = 0);
 	read_token();
 	if (flags.repl)
 	{
@@ -430,4 +431,5 @@ void parse()
 		while (p.token_type != END)
 			block();
 	write_byte(STOP);
+	reset_scope();
 }

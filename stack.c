@@ -17,7 +17,7 @@ void push_object(Object *obj)
 Object *pop_stack()
 {
 	if (!stack.length)
-		ERROR("StackError: stack empty");
+		ERROR("StackError: stack empty %d", line_no);
 	return stack.array[--stack.length];
 }
 

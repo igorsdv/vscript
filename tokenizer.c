@@ -37,7 +37,7 @@ void set_indent(int index, char c)
 	indent.string[index] = c;
 }
 
-char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "RETURN_KW", "GLOBAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "NOT_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
+char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "RETURN_KW", "GLOBAL_KW", "LOCAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "NOT_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
 
 void add_token(TokenType type, int offset)
 {
@@ -233,8 +233,10 @@ void tokenize(FILE *f)
 				add_token(DEF_KW, 0);
 			else if (!strcmp(value, "return"))
 				add_token(RETURN_KW, 0);
-			else if (!strcmp(value, "nonlocal"))
-				add_token(NONLOCAL_KW, 0);
+			else if (!strcmp(value, "global"))
+				add_token(GLOBAL_KW, 0);
+			else if (!strcmp(value, "local"))
+				add_token(LOCAL_KW, 0);
 			else
 				add_token(NAME, offset);
 			continue;

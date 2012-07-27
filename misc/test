@@ -1,8 +1,10 @@
-def g():
-def f(a, b):
-	nonlocal x = a
-	y = b
-	return
+local x
+y = 2
+def f(a):
+	print a
+	global x
+	x = a
+print x
+f(1)
 print x
 print y
-print f(1, y)

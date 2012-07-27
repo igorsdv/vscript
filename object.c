@@ -1,5 +1,11 @@
 #include "main.h"
 
+Object *null_object()
+{
+	static Object none = { NONE, 0, 0 };
+	return &none;
+}
+
 Object *new_object(ObjectType type, void *value)
 {
 	Object *obj = malloc(sizeof(Object));
@@ -23,7 +29,7 @@ Object *new_object(ObjectType type, void *value)
 
 void collect_object(Object *obj)
 {
-	if (!obj->refcount)
+	if (!obj->refcount && obj->type != NONE)
 	{
 		free(obj->value);
 		free(obj);

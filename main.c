@@ -51,7 +51,8 @@ int main(int argc, char *argv[])
 			tokenize(f);
 			fclose(f);
 			parse();
-			dis();
+			// dis();
+			run_vm();
 			reset_tokens();	
 			reset_vm();
 		}

@@ -22,6 +22,13 @@ int line_no;	// line number
         exit(1); \
     } while (0)
 
+#define log(...) \
+    do { \
+        fprintf(stderr, "line %d: ", line_no); \
+        fprintf(stderr, ##__VA_ARGS__); \
+        putc('\n', stderr); \
+    } while (0)
+
 /* enums */
 
 typedef enum {
@@ -30,7 +37,8 @@ typedef enum {
 	PRINT_KW,
 	DEF_KW,
 	RETURN_KW,
-	NONLOCAL_KW,
+	GLOBAL_KW,
+	LOCAL_KW,
 	IF_KW,
 	WHILE_KW,
 	ELSE_KW,
@@ -123,12 +131,18 @@ void reset_vm();
 void run_vm();
 void dis();
 
-#define get_symbol(a, b) add_symbol(a, b, 0)
-Symbol add_symbol(char *, int, byte);
+#define add_symbol(a, b, g) lookup_add_symbol(a, b, 0, 1, g)
+#define lookup_symbol(a, b) lookup_add_symbol(a, b, 1, 0, 0)
+#define get_symbol(a, b) lookup_add_symbol(a, b, 1, 1, 0)
+Symbol lookup_add_symbol(char *, int, byte, byte, byte);
 
+Object *null_object();
 Object *new_object(ObjectType, void *);
 void collect_object(Object *);
 
 void push_object(Object *);
 Object *pop_stack();
 Object *peek_stack();
+
+void load_symbol(Symbol *);
+void store_symbol(Symbol *);
