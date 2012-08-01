@@ -5,7 +5,7 @@ struct object *new_object(enum object_type type, void *value)
 	struct object *object = safe_malloc(sizeof *object);
 	size_t size = 0;
 
-	if (type == TYPE_INT) size = sizeof(long);
+	if (type == TYPE_INT) size = sizeof(int);
 	else if (type == TYPE_FLOAT) size = sizeof(double);
 	else if (type == TYPE_STRING) size = strlen(value) + 1;
 
@@ -29,8 +29,8 @@ struct object *make_object(enum object_type type, char *string)
 
 	if (type == TYPE_INT)
 	{
-		object->value = safe_malloc(sizeof(long));
-		*(long *)object->value = strtol(string, 0, 10);
+		object->value = safe_malloc(sizeof(int));
+		*(int *)object->value = strtol(string, 0, 10);
 		if (errno == ERANGE) error("OverflowError: integer value out of bounds");
 	}
 	else if (type == TYPE_FLOAT)

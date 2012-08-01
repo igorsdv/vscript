@@ -110,7 +110,7 @@ void run(struct env *env)
 					dis((struct code *)object->value, 0);
 					break;
 				case TYPE_INT:
-					printf("%ld\n", *(long *)object->value);
+					printf("%d\n", *(int *)object->value);
 					break;
 				case TYPE_FLOAT:
 					printf("%f\n", *(double *)object->value);
@@ -160,6 +160,88 @@ void run(struct env *env)
 				*offset = read_int();
 
 			gc_collect(object);
+		}
+		else if (op == UNARY_PLUS)
+		{
+			enum object_type type = peek_stack()->type;
+
+			if (type != TYPE_INT && type != TYPE_FLOAT)
+				error("TypeError: object is not of numeric type");
+		}
+		else if (op == UNARY_MINUS)
+		{
+			struct object *object = pop_stack();
+
+			if (object->type == TYPE_INT)
+			{
+				int value = -*(int *)object->value;
+				if (value == INT_MIN)
+					error("OverflowError: integer negation result out of bounds");
+				
+				push_object(new_object(TYPE_INT, &value));
+			}
+			else if (object->type == TYPE_FLOAT)
+			{
+				double value = -*(double *)object->value;
+				push_object(new_object(TYPE_FLOAT, &value));
+			}
+			else
+				error("TypeError: object is not of numeric type");
+
+			gc_collect(object);
+		}
+		else if (op == UNARY_NOT)
+		{
+			struct object *object = pop_stack();
+			
+			int value = !bool_value(object);
+			push_object(new_object(TYPE_INT, &value));
+
+			gc_collect(object);
+		}
+		else if (op >= EQUAL && op <= LESS_THAN_EQUAL)
+		{
+			struct object *a = pop_stack();
+			struct object *b = pop_stack();
+
+			int result = compare(a, b);
+
+			if (result > 0)
+			{
+				if (op == GREATER_THAN || op == GREATER_THAN_EQUAL)
+					result = 1;
+				else
+					result = 0;
+			}
+			else if (result < 0)
+			{
+				if (op == LESS_THAN || op == LESS_THAN_EQUAL)
+					result = 1;
+				else
+					result = 0;
+			}
+			else if (op == EQUAL || op == GREATER_THAN_EQUAL || op == LESS_THAN_EQUAL)
+				result = 1;
+
+			if (op != EQUAL && op != NOT_EQUAL && a->type == TYPE_CODE)
+				error("TypeError: only equality comparison is defined on code objects");
+
+			push_object(new_object(TYPE_INT, &result));
+
+			gc_collect(a);
+			gc_collect(b);
+		}
+		else if (op == ADD) // (op >= ADD && op <= DIV)
+		{
+			struct object *(*function[])(struct object *, struct object *) = { &add, &subtract, &multiply, &divide };
+
+			struct object *a = pop_stack();
+			struct object *b = pop_stack();
+
+			push_object(function[op - ADD](a, b));
+
+			gc_collect(a);
+			gc_collect(b);
 		}
 		else
 			error("unrecognized opcode %d", op);

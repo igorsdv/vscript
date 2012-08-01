@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 typedef unsigned char byte;
 
@@ -163,3 +164,8 @@ struct object *pop_stack();
 struct object *peek_stack();
 
 int bool_value(struct object *);
+int compare(struct object *, struct object *);
+struct object * add(struct object *, struct object *);
+struct object * subtract(struct object *, struct object *);
+struct object * multiply(struct object *, struct object *);
+struct object * divide(struct object *, struct object *);
