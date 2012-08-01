@@ -1,0 +1,167 @@
+#include "main.h"
+#define PROGRAM_ARRAY_SIZE 1024
+
+#define read_byte() *(byte *)read_bytes(co, offset, 1)
+#define read_int() *(int *)read_bytes(co, offset, sizeof(int))
+#define read_string() (char *)read_bytes(co, offset, strlen((char *)(env->co->program.array + &offset)) + 1)
+
+char *opcodes[] = { "RETURN", "SET_LINE", "POP", "PRINT", "STORE", "LOAD", "LOAD_CONST", "CALL_FUNCTION", "JUMP", "POP_JUMP_IF_FALSE", "UNARY_PLUS", "UNARY_MINUS", "UNARY_NOT", "EQUAL", "NOT_EQUAL", "GREATER_THAN", "LESS_THAN", "GREATER_THAN_EQUAL", "LESS_THAN_EQUAL", "ADD", "SUB", "MULT", "DIV" };
+
+void write_bytes(struct code *co, void *value, size_t n)
+{
+	struct program *program = &co->program;
+	if (program->length % PROGRAM_ARRAY_SIZE == 0 || program->length % PROGRAM_ARRAY_SIZE + n > PROGRAM_ARRAY_SIZE)
+		program->array = safe_realloc(program->array, ((program->length + n) / PROGRAM_ARRAY_SIZE + 1) * PROGRAM_ARRAY_SIZE);
+	memcpy(program->array + program->length, value, n);
+	program->length += n;
+}
+
+void write_byte(struct code *co, byte b)
+{
+	struct program *program = &co->program;
+	if (program->length % PROGRAM_ARRAY_SIZE == 0)
+		program->array = safe_realloc(program->array, program->length + PROGRAM_ARRAY_SIZE);
+	program->array[program->length++] = b;
+}
+
+void write_int(struct code *co, int i)
+{
+	write_bytes(co, &i, sizeof i);
+}
+
+byte *read_bytes(struct code *co, int *offset, size_t n)
+{
+	byte *value = co->program.array + *offset;
+	*offset += n;
+	return value;
+}
+
+void clear_program(struct code *co)
+{
+	if (co->program.length)
+	{
+		free(co->program.array);
+		co->program.length = 0;
+	}
+}
+
+void dis(struct code *co, int *offset)
+{
+	if (!offset)
+		offset = safe_calloc(1, sizeof *offset);
+
+	while (*offset < co->program.length)
+	{
+		enum opcode op = read_byte();
+		printf("%u %s ", *offset - 1, opcodes[op]);
+		switch (op)
+		{
+			case RETURN:
+				putchar('\n');
+				return;
+			case STORE:
+			case LOAD:
+			case LOAD_CONST:
+			case CALL_FUNCTION:
+			case JUMP:
+			case POP_JUMP_IF_FALSE:
+			case SET_LINE:
+				printf("%u \n", read_int());
+				break;
+			default:
+				putchar('\n');
+				break;
+		}
+	}
+}
+
+void run(struct env *env)
+{
+	struct code *co = env->co;
+	int *offset = &env->offset;
+
+	if (co->symbols.length > env->objects.length)
+	{
+		env->objects.array = safe_realloc(env->objects.array, co->symbols.length * sizeof *env->objects.array);
+		memset(env->objects.array + env->objects.length, 0, (co->symbols.length - env->objects.length) * sizeof *env->objects.array);
+		env->objects.length = co->symbols.length;
+	}
+
+	while (*offset < co->program.length)
+	{
+		enum opcode op = read_byte();
+
+		if (op == RETURN)
+			return;
+		else if(op == SET_LINE)
+			line_no = read_int();
+		else if (op == POP)
+			gc_collect(pop_stack());
+		else if (op == PRINT)
+		{
+			struct object *object = pop_stack();
+			
+			switch (object->type)
+			{
+				case TYPE_NONE:
+					puts("<null object>");
+					break;
+				case TYPE_CODE:
+					dis((struct code *)object->value, 0);
+					break;
+				case TYPE_INT:
+					printf("%ld\n", *(long *)object->value);
+					break;
+				case TYPE_FLOAT:
+					printf("%f\n", *(double *)object->value);
+					break;
+				case TYPE_STRING:
+					printf("%s\n", (char *)object->value);
+			}
+			
+			gc_collect(object);
+		}
+		else if (op == STORE)
+			store_symbol(env, read_int());
+		else if (op == LOAD)
+			load_symbol(env, read_int());
+		else if (op == LOAD_CONST)
+			push_object(co->data.array[read_int()]);
+		else if (op == CALL_FUNCTION)
+		{
+			int argc = read_int();
+
+			struct object *object = pop_stack();
+			struct env function = { 0 };
+
+			if (object->type != TYPE_CODE)
+				error("TypeError: object is not callable");
+
+			function.co = (struct code *)object->value;
+			function.parent = env;
+
+			if (argc > function.co->argc)
+				error("TypeError: function takes at most %d arguments (%d given)", function.co->argc, argc);
+			while (argc++ < function.co->argc)
+				push_object(null_object());
+
+			run(&function);
+			free(function.objects.array);
+		}
+		else if (op == JUMP)
+			*offset = read_int();
+		else if (op == POP_JUMP_IF_FALSE)
+		{
+			struct object *object = pop_stack();
+
+			if (bool_value(object))
+				(void)read_int();
+			else
+				*offset = read_int();
+
+			gc_collect(object);
+		}
+		else
+			error("unrecognized opcode %d", op);
+	}
+}

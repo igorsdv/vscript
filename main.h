@@ -1,88 +1,77 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
 
 typedef unsigned char byte;
 
-#define MAX_NESTED_BLOCKS 256
-#define MAX_NAME_LENGTH 255
+/* globals */
 
-struct {
-	byte repl;
-	byte allow_empty_blocks;
-	byte bytecode;
-} flags;
-int line_no;	// line number
+int options;				// flags and options
+enum options {				// bitfields
+	flag_repl = 1,
+	flag_allow_empty_blocks = 2,
+	flag_bytecode = 4,
+	option_files = 8
+};
 
-#define ERROR(...) \
-    do { \
-        fprintf(stderr, ##__VA_ARGS__); \
-        putc('\n', stderr); \
-        exit(1); \
-    } while (0)
+int line_no;				// line number (you don't say?)
+byte repl_mode;				// interactive mode
 
-#define log(...) \
-    do { \
-        fprintf(stderr, "line %d: ", line_no); \
-        fprintf(stderr, ##__VA_ARGS__); \
-        putc('\n', stderr); \
-    } while (0)
+/* helpers */
 
-/* enums */
+#define error(...) fprintf(stderr, ##__VA_ARGS__), fprintf(stderr, " at line %u\n", line_no), exit(1)
 
-typedef enum {
-	END,
-	NEWLINE,		// used for line number
-	PRINT_KW,
-	DEF_KW,
-	RETURN_KW,
-	GLOBAL_KW,
-	LOCAL_KW,
-	IF_KW,
-	WHILE_KW,
-	ELSE_KW,
-	BLOCK_START,	// colon
-	BLOCK_END,		// unindent
-	NAME,			// variable
-	LITERAL,
-	NUMERAL,
-	MUL_OP,
-	ADD_OP,
-	CMP_OP,
-	EQL_OP,
-	ASG_OP,
-	NOT_OP,
-	LPAREN,
-	RPAREN,
-	LBRACKET,
-	RBRACKET,
-	COMMA,
-	SEMICOLON
-} TokenType;
+#define log(...) fprintf(stderr, ##__VA_ARGS__), putc('\n', stderr)
 
-typedef enum {
-	NONE,
-	INTEGER,	// long
-	FLOAT,		// double
-	STRING,
-	FUNCTION
-} ObjectType;
+/* declarations */
 
-typedef enum {
-	STOP,
+struct token {
+	enum token_type {
+		END,
+		NEWLINE,		// used for line number
+		PRINT_KW,
+		DEF_KW,
+		RETURN_KW,
+		GLOBAL_KW,
+		IF_KW,
+		WHILE_KW,
+		ELSE_KW,
+		BLOCK_START,	// colon
+		BLOCK_END,		// unindent
+		NAME,			// variable
+		LITERAL,
+		NUMERAL,
+		MUL_OP,
+		ADD_OP,
+		CMP_OP,
+		EQL_OP,
+		ASG_OP,
+		NOT_OP,
+		LPAREN,
+		RPAREN,
+		LBRACKET,
+		RBRACKET,
+		COMMA,
+		SEMICOLON
+	} type;
+	int offset;
+};
+
+enum opcode {
+	RETURN,
 	SET_LINE,			// SET_LINE (int line_no)
 	POP,
 	PRINT,				// print and pop
-	STORE,				// STORE (Symbol s)
-	LOAD,				// LOAD (Symbol s)
-	LOAD_CONST,			// LOAD_CONST (byte type, ...)
+	STORE,				// STORE (int s)
+	LOAD,				// LOAD (int s)
+	LOAD_CONST,			// LOAD_CONST (int c)
 	CALL_FUNCTION,		// CALL_FUNCTION (int argc)
-	RETURN_VALUE,
 	JUMP,				// JUMP (int target)
-	POP_JUMP_IF_TRUE,	// jump and pop
-	POP_JUMP_IF_FALSE,
+//	POP_JUMP_IF_TRUE,
+	POP_JUMP_IF_FALSE,	// pop and jump (int target)
 	UNARY_PLUS,
 	UNARY_MINUS,
 	UNARY_NOT,
@@ -96,54 +85,81 @@ typedef enum {
 	SUB,
 	MULT,
 	DIV
-} Opcode;
+};
 
-/* structs */
-
-typedef struct {
-	ObjectType type;
-	void *value;
-	int refcount;
-} Object;
-
-typedef struct {
-	int argc;
+struct env {							// combine ALL the declarations!
+	struct code {						// code object
+		struct program {
+			size_t length;
+			byte *array;
+		} program;
+		struct data {
+			size_t length;
+			struct object {				// object
+				enum object_type {
+					TYPE_NONE,
+					TYPE_CODE,
+					TYPE_INT,
+					TYPE_FLOAT,
+					TYPE_STRING
+				} type;
+				void *value;
+				int refcount;
+			} **array;
+		} data;
+		struct symbols {
+			size_t length;
+			struct symbol {
+				char *name;
+				enum scope {
+					SCOPE_NONLOCAL,		// default
+					SCOPE_GLOBAL,
+					SCOPE_LOCAL
+				} scope;
+			} *array;
+		} symbols;
+		int argc;
+	} *co;
+	struct objects {
+		size_t length;
+		struct object **array;
+	} objects;
+	struct env *parent;
 	int offset;
-} Function;
-
-typedef struct {
-	int scope;
-	int offset;
-} Symbol;
+};
 
 /* prototypes */
+
+void *safe_malloc(size_t);
+void *safe_calloc(size_t, size_t);
+void *safe_realloc(void *, size_t);
 
 void tokenize(FILE *);
 void reset_tokens();
 
-void parse();
+void parse(struct code *);
 
-#define write_string(x) write_bytes(x, strlen(x) + 1)
-void write_bytes(void *, int);
-void write_byte(byte);
-void write_int(int);
-void write_int_at(int, int);
-void reset_vm();
-void run_vm();
-void dis();
+void write_bytes(struct code *, void *, size_t);
+void write_byte(struct code *, byte);
+void write_int(struct code *, int);
+void clear_program(struct code *);
+void dis(struct code *, int *);
+void run(struct env *);
 
-#define add_symbol(a, b, g) lookup_add_symbol(a, b, 0, 1, g)
-#define lookup_symbol(a, b) lookup_add_symbol(a, b, 1, 0, 0)
-#define get_symbol(a, b) lookup_add_symbol(a, b, 1, 1, 0)
-Symbol lookup_add_symbol(char *, int, byte, byte, byte);
+int get_symbol(struct code *, char *, enum scope);
+int get_const(struct code *, struct object *object);
+void load_symbol(struct env *, int);
+void store_symbol(struct env *, int);
 
-Object *null_object();
-Object *new_object(ObjectType, void *);
-void collect_object(Object *);
+struct object *new_object(enum object_type, void *);
+struct object *null_object();
+struct object *make_object(enum object_type, char *);
+void gc_ref(struct object *);
+void gc_deref(struct object *);
+void gc_collect(struct object *);
 
-void push_object(Object *);
-Object *pop_stack();
-Object *peek_stack();
+void push_object(struct object *);
+struct object *pop_stack();
+struct object *peek_stack();
 
-void load_symbol(Symbol *);
-void store_symbol(Symbol *);
+int bool_value(struct object *);

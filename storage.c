@@ -1,44 +1,96 @@
 #include "main.h"
-#define SYMBOL_ARRAY_ALLOC_SIZE 64
-#define SCOPE_ARRAY_ALLOC_SIZE 64
+#define SYMBOL_ARRAY_SIZE 64
+#define DATA_ARRAY_SIZE 64
 
-struct {
-	struct scope {
-		Object **objects;
-		int size;
-	} *array;
-	int size;
-} storage;
-
-void load_symbol(Symbol *s)
+int get_symbol(struct code *co, char *name, enum scope scope)
 {
-	if (s->scope >= storage.size || s->offset >= storage.array[s->scope].size || !storage.array[s->scope].objects[s->offset])
-		push_object(null_object());
-	else
-		push_object(storage.array[s->scope].objects[s->offset]);
+	struct symbols *symbols = &co->symbols;
+	int i;
+
+	for (i = 0; i < symbols->length; i++)
+	{
+		if (!strcmp(name, symbols->array[i].name))
+		{
+			if (scope == SCOPE_GLOBAL && symbols->array[i].scope != SCOPE_GLOBAL)
+			{
+				log("NameWarning: global variable '%s' referenced before declaration at line %u", name, line_no);
+				symbols->array[i].scope = SCOPE_GLOBAL;
+			}
+			else if (scope == SCOPE_LOCAL && symbols->array[i].scope == SCOPE_NONLOCAL)
+				error("NameError: local variable '%s' referenced before initialization", name, line_no);
+			return i;
+		}
+	}
+
+	if (i % SYMBOL_ARRAY_SIZE == 0)
+		symbols->array = safe_realloc(symbols->array, (i + SYMBOL_ARRAY_SIZE) * sizeof *symbols->array);
+	symbols->array[i].name = safe_malloc(strlen(name) + 1);
+	strcpy(symbols->array[i].name, name);
+	symbols->array[i].scope = scope;
+	return symbols->length++;
 }
 
-void store_symbol(Symbol *s)
+int get_const(struct code *co, struct object *object)
 {
-	struct scope *scope;
-	while (s->scope >= storage.size)
+	struct data *data = &co->data;
+	if (data->length % DATA_ARRAY_SIZE == 0)
+		data->array = safe_realloc(data->array, (data->length + DATA_ARRAY_SIZE) * sizeof *data->array);
+	data->array[data->length] = object;
+	++object->refcount;
+	return data->length++;
+}
+
+void load_symbol(struct env *env, int s)
+{
+	char *name = env->co->symbols.array[s].name;
+	enum scope scope = env->co->symbols.array[s].scope;
+	int i;
+
+	if (scope == SCOPE_LOCAL)
 	{
-		storage.array = realloc(storage.array, (storage.size + SCOPE_ARRAY_ALLOC_SIZE) * sizeof(struct scope));
-		memset(storage.array + storage.size * sizeof(struct scope), 0, SCOPE_ARRAY_ALLOC_SIZE * sizeof(struct scope));
-		storage.size += SCOPE_ARRAY_ALLOC_SIZE;
+		push_object(env->objects.array[s]);
+		return;
 	}
-	scope = storage.array + s->scope;
-	while (s->offset >= scope->size)
+
+	if (scope == SCOPE_GLOBAL)
+		while (env->parent) env = env->parent;
+
+	do {
+		for (i = 0; i < env->co->symbols.length; i++)
+		{
+			if (env->co->symbols.array[i].scope != SCOPE_NONLOCAL && !strcmp(name, env->co->symbols.array[i].name))
+			{
+				push_object(env->objects.array[i]);
+				return;
+			}
+		}
+	} while (env = env->parent);
+
+	error("NameError: undefined variable '%s'", name);
+}
+
+void store_symbol(struct env *env, int s)
+{
+	char *name = env->co->symbols.array[s].name;
+	enum scope scope = env->co->symbols.array[s].scope;
+
+	if (scope == SCOPE_GLOBAL)
 	{
-		scope->objects = realloc(scope->objects, (scope->size + SYMBOL_ARRAY_ALLOC_SIZE) * sizeof(Object *));
-		memset(scope->objects + scope->size * sizeof(Object *), 0, SYMBOL_ARRAY_ALLOC_SIZE * sizeof(Object *));
-		scope->size += SYMBOL_ARRAY_ALLOC_SIZE;
+		int length;
+
+		while (env->parent) env = env->parent;
+
+		length = env->co->symbols.length;
+		s = get_symbol(env->co, name, SCOPE_LOCAL);
+		
+		if (env->co->symbols.length > env->objects.length)
+		{
+			env->objects.array = safe_realloc(env->objects.array, (length + 1) * sizeof *env->objects.array);
+			env->objects.array[env->objects.length++] = 0;
+		}
 	}
-	if (scope->objects[s->offset])
-	{
-		scope->objects[s->offset]->refcount--;
-		collect_object(scope->objects[s->offset]);
-	}
-	scope->objects[s->offset] = peek_stack();
-	scope->objects[s->offset]->refcount++;
+
+	if (env->objects.array[s]) --env->objects.array[s]->refcount;
+	env->objects.array[s] = peek_stack();
+	++env->objects.array[s]->refcount;
 }

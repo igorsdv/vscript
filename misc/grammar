@@ -5,7 +5,7 @@ if_block : IF_KW expression BLOCK_START block* BLOCK_END [ ELSE_KW BLOCK_START b
 while_block : IF_KW expression BLOCK_START block* BLOCK_END
 function : DEF_KW NAME LPAREN [ name_list ] RPAREN BLOCK_START block* BLOCK_END
 name_list : NAME [ COMMA name_list ]
-statement : [ PRINT_KW | RETURN_KW ] [ expression ] SEMICOLON | [ GLOBAL_KW | LOCAL_KW ] NAME { COMMA NAME } SEMICOLON
+statement : [ PRINT_KW | RETURN_KW ] [ expression ] SEMICOLON | GLOBAL_KW NAME { COMMA NAME } SEMICOLON
 expression : eql_expr | assignment
 assignment : NAME ASG_OP expression
 eql_expr : cmp_expr [ EQL_OP cmp_expr ]

@@ -1,37 +1,64 @@
 #include "main.h"
 
-Object *null_object()
+struct object *new_object(enum object_type type, void *value)
 {
-	static Object none = { NONE, 0, 0 };
+	struct object *object = safe_malloc(sizeof *object);
+	size_t size = 0;
+
+	if (type == TYPE_INT) size = sizeof(long);
+	else if (type == TYPE_FLOAT) size = sizeof(double);
+	else if (type == TYPE_STRING) size = strlen(value) + 1;
+
+	object->value = size ? safe_malloc(size) : value;
+	if (size) memcpy(object->value, value, size);
+
+	object->type = type;
+	object->refcount = 0;
+	return object;
+}
+
+struct object *null_object()
+{
+	static struct object none = { 0 };
 	return &none;
 }
 
-Object *new_object(ObjectType type, void *value)
+struct object *make_object(enum object_type type, char *string)
 {
-	Object *obj = malloc(sizeof(Object));
-	int size = 0;
+	struct object *object = safe_malloc(sizeof *object);
 
-	if (type == INTEGER)
-		size = sizeof(long);
-	else if (type == FLOAT)
-		size = sizeof(double);
-	else if (type == STRING)
-		size = strlen(value) + 1;
-	else if (type == FUNCTION)
-		size = sizeof(Function);
-	obj->value = size ? malloc(size) : 0;
-	if (size)
-		memcpy(obj->value, value, size);
-	obj->type = type;
-	obj->refcount = 0;
-	return obj;
+	if (type == TYPE_INT)
+	{
+		object->value = safe_malloc(sizeof(long));
+		*(long *)object->value = strtol(string, 0, 10);
+		if (errno == ERANGE) error("OverflowError: integer value out of bounds");
+	}
+	else if (type == TYPE_FLOAT)
+	{
+		object->value = safe_malloc(sizeof(double));
+		*(double *)object->value = strtod(string, 0);
+		if (errno == ERANGE) error("OverflowError: floating-point value out of bounds");
+	}
+	else if (type == TYPE_STRING)
+	{
+		object->value = safe_malloc(strlen(string) + 1);
+		strcpy(object->value, string);
+	}
+	else
+		object->value = 0;
+
+	object->type = type;
+	object->refcount = 0;
+	return object;
 }
 
-void collect_object(Object *obj)
+/* Garbage collection */
+
+void gc_collect(struct object *object)
 {
-	if (!obj->refcount && obj->type != NONE)
+	if (object->refcount == 0)
 	{
-		free(obj->value);
-		free(obj);
+		free(object->value);
+		free(object);
 	}
 }

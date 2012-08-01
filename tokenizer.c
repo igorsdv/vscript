@@ -3,28 +3,23 @@
 #define TOKEN_ARRAY_ALLOC_SIZE 256
 #define INDENT_STRING_ALLOC_SIZE 256
 
-typedef struct {
-	TokenType type;
-	int offset;
-} Token;
-
 struct {
 	char *value;
 	int size;
 	int length;
-} string = { 0, 0, 0 };
+} string = { 0 };
 
 struct {
-	Token *array;
+	struct token *array;
 	int size;
 	int length;
-} tokens = { 0, 0, 0 };
+} tokens = { 0 };
 
 struct {
 	char *string;
 	int *offsets;		// offset in string of end of indent for each block
 	int size;
-} indent = { 0, 0, 0 };
+} indent = { 0 };
 
 void set_indent(int index, char c)
 {
@@ -37,20 +32,20 @@ void set_indent(int index, char c)
 	indent.string[index] = c;
 }
 
-char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "RETURN_KW", "GLOBAL_KW", "LOCAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "NOT_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
+char *tkns[] = { "END", "NEWLINE", "PRINT_KW", "DEF_KW", "RETURN_KW", "GLOBAL_KW", "IF_KW", "WHILE_KW", "ELSE_KW", "BLOCK_START", "BLOCK_END", "NAME", "LITERAL", "NUMERAL", "MUL_OP", "ADD_OP", "CMP_OP", "EQL_OP", "ASG_OP", "NOT_OP", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "COMMA", "SEMICOLON" };
 
-void add_token(TokenType type, int offset)
+void add_token(enum token_type type, int offset)
 {
-	Token t = { type, offset };
+	struct token t = { type, offset };
 	if (tokens.length == tokens.size)
-		tokens.array = realloc(tokens.array, (tokens.size += TOKEN_ARRAY_ALLOC_SIZE) * sizeof(Token));
+		tokens.array = realloc(tokens.array, (tokens.size += TOKEN_ARRAY_ALLOC_SIZE) * sizeof *tokens.array);
 	tokens.array[tokens.length++] = t;
 }
 
 void add_newline()
 {
 	add_token(NEWLINE, 0);
-	if (line_no++ && flags.repl)
+	if (line_no++ && repl_mode)
 		printf("... ");
 }
 
@@ -59,18 +54,18 @@ void reset_tokens()
 	if (string.size > TOKEN_STRING_ALLOC_SIZE)
 		string.value = realloc(string.value, string.size = TOKEN_STRING_ALLOC_SIZE);
 	if (tokens.size > TOKEN_STRING_ALLOC_SIZE)
-		tokens.array = realloc(tokens.array, (tokens.size = TOKEN_ARRAY_ALLOC_SIZE) * sizeof(Token));
+		tokens.array = realloc(tokens.array, (tokens.size = TOKEN_ARRAY_ALLOC_SIZE) * sizeof *tokens.array);
 	if (indent.size > INDENT_STRING_ALLOC_SIZE)
 	{
 		indent.size = INDENT_STRING_ALLOC_SIZE;
 		indent.string = realloc(indent.string, indent.size);
-		indent.offsets = realloc(indent.offsets, indent.size * sizeof(int));
+		indent.offsets = realloc(indent.offsets, indent.size * sizeof *indent.offsets);
 	}
 	string.length = 0;
 	tokens.length = 0;
 }
 
-TokenType last_token_type()
+enum token_type last_token_type()
 {
 	int i = tokens.length;
 	while (i-- > 0)
@@ -79,7 +74,7 @@ TokenType last_token_type()
 	return 0;
 }
 
-TokenType get_token_type(int index)
+enum token_type get_token_type(int index)
 {
 	if (index < tokens.length)
 		return tokens.array[index].type;
@@ -108,7 +103,6 @@ void tokenize(FILE *f)
 	int parens = 0;
 	int blocks = 0;
 
-	line_no = 0;
 	set_indent(0, '\0');
 	indent.offsets[0] = 0;
 	append_char('\0');		// allocate memory; null-terminate tokens with offset = 0
@@ -128,7 +122,7 @@ void tokenize(FILE *f)
 			else if (c == ' ' || c == '\t')						// increase indent
 			{
 				if (!new_block || i < strlen(indent.string))
-					ERROR("SyntaxError: unexpected indentation at line %d", line_no + 1);
+					++line_no, error("SyntaxError: unexpected indentation");
 				do {
 					set_indent(i++, c);
 					c = getc(f);
@@ -142,7 +136,7 @@ void tokenize(FILE *f)
 				if (blocks)		// cannot replace with "while" as indent.offsets[blocks] may be undefined
 					do add_token(BLOCK_END, 0); while (--blocks && i < indent.offsets[blocks]);
 				if (i != indent.offsets[blocks])
-					ERROR("SyntaxError: mismatched indentation at line %d", line_no + 1);
+					++line_no, error("SyntaxError: mismatched indentation");
 				set_indent(i, '\0');
 				new_block = 0;
 			}
@@ -160,11 +154,11 @@ void tokenize(FILE *f)
 		{
 			if (!parens)	// otherwise, multi-line expression (disregard indent)
 			{
-				TokenType tt = last_token_type();
+				enum token_type tt = last_token_type();
 				if (tt != SEMICOLON && tt != BLOCK_START && tt != BLOCK_END && tt != 0)	// 0 actually means "start" here
 					add_token(SEMICOLON, 0);
 				new_line = 1;
-				if (flags.repl && !blocks)
+				if (repl_mode && !blocks)
 					c = EOF;
 			}
 			else if (c == EOF)
@@ -173,14 +167,14 @@ void tokenize(FILE *f)
 				continue;
 			if (!new_line)
 				add_newline();
-			else if (flags.repl)
+			else if (repl_mode)
 				printf("... ");
 		}
 		else if (c == '\\')
 		{
 			c = getc(f);
 			if (c != '\n')
-				ERROR("SyntaxError: unexpected character after line continuation at line %d", line_no);
+				error("SyntaxError: unexpected character after line continuation");
 			add_newline();
 		}
 		else if (c == '(')
@@ -204,7 +198,7 @@ void tokenize(FILE *f)
 		else if (c == ':')
 		{
 			if (new_block)		// avoid nested blocks on the same line
-				ERROR("SyntaxError: illegal colon at line %d", line_no);
+				error("SyntaxError: illegal colon");
 			add_token(BLOCK_START, 0);
 			blocks++;
 			new_block = 1;
@@ -235,8 +229,6 @@ void tokenize(FILE *f)
 				add_token(RETURN_KW, 0);
 			else if (!strcmp(value, "global"))
 				add_token(GLOBAL_KW, 0);
-			else if (!strcmp(value, "local"))
-				add_token(LOCAL_KW, 0);
 			else
 				add_token(NAME, offset);
 			continue;
@@ -257,7 +249,7 @@ void tokenize(FILE *f)
 			while ((c = getc(f)) != '"')
 			{
 				if (c == EOF || c == '\n')
-					ERROR("SyntaxError: unterminated string at line %d", line_no);
+					error("SyntaxError: unterminated string");
 				if (c == '\\')
 				{
 					switch (c = getc(f))
@@ -276,7 +268,7 @@ void tokenize(FILE *f)
 						break;
 					// \x for unicode, ...
 					case EOF:
-						ERROR("SyntaxError: unterminated string at line %d", line_no);
+						error("SyntaxError: unterminated string");
 					default:
 						append_char('\\');
 						append_char(c);
@@ -318,7 +310,7 @@ void tokenize(FILE *f)
 			append_char(c);
 			c = getc(f);
 			if (c != '=')
-				ERROR("SyntaxError: unrecognized character <!> at line %d", line_no);
+				error("SyntaxError: unrecognized character <!>");
 			append_char(c);
 			append_char('\0');
 			add_token(EQL_OP, offset);
@@ -367,7 +359,7 @@ void tokenize(FILE *f)
 			append_char('\0');
 		}
 		else
-			ERROR("SyntaxError: unrecognized character <%c> at line %d", c, line_no);
+			error("SyntaxError: unrecognized character <%c> at line %d", c, line_no);
 		c = getc(f);	// where appropriate, "continue" is used to skip this instead of ungetc()
 	}
 

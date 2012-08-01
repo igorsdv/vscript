@@ -1,118 +1,133 @@
 #include "main.h"
 
-struct {
-	int offset;
-	int scope;
-	TokenType token_type;
-} p;
+#define write_byte(value) write_byte(co, value)
+#define write_int(value) write_int(co, value)
+#define write_int_at(value, offset) (*(int *)(co->program.array + offset) = value)
+#define write_string(str) write_bytes(co, str, strlen(str) + 1)
+#define get_symbol(name, scope) get_symbol(co, name, scope)
+#define get_const(object) get_const(co, object)
+#define get_offset() (co->program.length)
 
-TokenType next_token_type()
-{
-	TokenType t;
-	int i = p.offset;
-	while ((t = get_token_type(++i)) == NEWLINE);
-	return t;
-}
+struct code *co;
+int offset;
+enum token_type token_type, next_token_type;
 
 void read_token()
 {
-	while ((p.token_type = get_token_type(++p.offset)) == NEWLINE)
+	while ((token_type = get_token_type(++offset)) == NEWLINE)
 	{
 		write_byte(SET_LINE);
 		write_int(++line_no);
 	}
 }
 
-char *token_value()
+void peek_token()
 {
-	return (char *)get_token_value(p.offset);
+	int i = offset;
+	while ((next_token_type = get_token_type(++i)) == NEWLINE);
 }
+
+/* from the because-I-feel-like-it dep't */
+#define token_value (char *)(get_token_value(offset))
+#define next_token_type (peek_token(), next_token_type)
 
 void expression();
 void block();
 
 void unr_expr()
 {
-	if (p.token_type == ADD_OP)
+	if (token_type == ADD_OP)
 	{
-		char oper = *token_value();
+		char oper = *token_value;
+
 		read_token();
 		unr_expr();
+
 		if (oper == '+')
 			write_byte(UNARY_PLUS);
 		else if (oper == '-')
 			write_byte(UNARY_MINUS);
 	}
-	else if (p.token_type == LPAREN)
+	else if (token_type == LPAREN)
 	{
 		read_token();
-		if (p.token_type == RPAREN)
+
+		if (token_type == RPAREN)
 		{
 			write_byte(LOAD_CONST);
-			write_byte(NONE);
+			write_int(get_const(null_object()));
 		}
 		else
 			expression();
-		if (p.token_type != RPAREN)
-			ERROR("SyntaxError: unmatched parenthesis at line %d", line_no);
+
+		if (token_type != RPAREN)
+			error("SyntaxError: unmatched parenthesis");
 		read_token();
 	}
-	else if (p.token_type == NAME)
+	else if (token_type == NAME)
 	{
-		Symbol s = lookup_symbol(token_value(), p.scope);
+		int s = get_symbol(token_value, SCOPE_NONLOCAL);
+		
 		read_token();
-		if (p.token_type == LPAREN)
+
+		if (token_type == LPAREN)
 		{
 			int argc = 0;
-			if (next_token_type() != RPAREN)
+
+			if (next_token_type != RPAREN)
 			{
 				do {
 					read_token();
 					expression();
 					argc++;
-				} while (p.token_type == COMMA);
+				} while (token_type == COMMA);
 			}
 			else
 				read_token();
+
 			write_byte(LOAD);
-			write_bytes(&s, sizeof(Symbol));
+			write_int(s);
+
 			write_byte(CALL_FUNCTION);
 			write_int(argc);
-			if (p.token_type != RPAREN)
-				ERROR("SyntaxError: unterminated function call at line %d", line_no);
+
+			if (token_type != RPAREN)
+				error("SyntaxError: unterminated function call");
 			read_token();
 		}
 		else
 		{
 			write_byte(LOAD);
-			write_bytes(&s, sizeof(Symbol));
+			write_int(s);
 		}
 	}
-	else if (p.token_type == NUMERAL)
+	else if (token_type == NUMERAL)
 	{
-		char *str = token_value();
+		char *string = token_value;
+
 		write_byte(LOAD_CONST);
-		write_byte(strchr(str, '.') ? FLOAT : INTEGER);
-		write_string(str);
+		write_int(get_const(make_object(strchr(string, '.') ? TYPE_FLOAT : TYPE_INT, string)));
+
 		read_token();
 	}
-	else if (p.token_type == LITERAL)
+	else if (token_type == LITERAL)
 	{
 		write_byte(LOAD_CONST);
-		write_byte(STRING);
-		write_string(token_value());
+		write_int(get_const(make_object(TYPE_STRING, token_value)));
+
 		read_token();
 	}
 	else
-		ERROR("SyntaxError: unterminated expression at line %d", line_no);
+		error("SyntaxError: unterminated expression");
 }
 
 void not_expr()
 {
-	if (p.token_type == NOT_OP)
+	if (token_type == NOT_OP)
 	{
 		read_token();
 		not_expr();
+
 		write_byte(UNARY_NOT);
 	}
 	else
@@ -122,11 +137,14 @@ void not_expr()
 void mul_expr()
 {
 	not_expr();
-	while (p.token_type == MUL_OP)
+
+	while (token_type == MUL_OP)
 	{
-		char oper = *token_value();
+		char oper = *token_value;
+
 		read_token();
 		not_expr();
+
 		if (oper == '*')
 			write_byte(MULT);
 		else if (oper == '/')
@@ -137,11 +155,14 @@ void mul_expr()
 void add_expr()
 {
 	mul_expr();
-	while (p.token_type == ADD_OP)
+
+	while (token_type == ADD_OP)
 	{
-		char oper = *token_value();
+		char oper = *token_value;
+
 		read_token();
 		mul_expr();
+
 		if (oper == '+')
 			write_byte(ADD);
 		else if (oper == '-')
@@ -152,11 +173,14 @@ void add_expr()
 void cmp_expr()
 {
 	add_expr();
-	if (p.token_type == CMP_OP)
+
+	if (token_type == CMP_OP)
 	{
-		char *oper = token_value();
+		char *oper = token_value;
+
 		read_token();
 		add_expr();
+
 		if (oper[1] == '=')
 		{
 			if (*oper == '>')
@@ -174,11 +198,14 @@ void cmp_expr()
 void eql_expr()
 {
 	cmp_expr();
-	if (p.token_type == EQL_OP)
+
+	if (token_type == EQL_OP)
 	{
-		char oper = *token_value();
+		char oper = *token_value;
+
 		read_token();
 		cmp_expr();
+
 		if (oper == '=')
 			write_byte(EQUAL);
 		else if (oper == '!')
@@ -188,20 +215,20 @@ void eql_expr()
 
 void assignment()
 {
-	Symbol s;
-	char oper, *str = token_value();
+	char oper, *name = token_value;
+	
 	read_token();
-	oper = *token_value();
+	oper = *token_value;
+
 	if (oper != '=')	// compound assignment
 	{
-		s = lookup_symbol(str, p.scope);
 		write_byte(LOAD);
-		write_bytes(&s, sizeof(Symbol));
+		write_int(get_symbol(name, SCOPE_NONLOCAL));
 	}
-	else
-		s = get_symbol(str, p.scope);
+
 	read_token();
 	expression();
+
 	if (oper != '=')
 	{
 		if (oper == '+')
@@ -213,14 +240,15 @@ void assignment()
 		else if (oper == '/')
 			write_byte(DIV);
 	}
+
 	write_byte(STORE);
-	write_bytes(&s, sizeof(Symbol));
+	write_int(get_symbol(name, SCOPE_LOCAL));
 }
 
 void expression()
 {
 
-	if (p.token_type == NAME && next_token_type() == ASG_OP)
+	if (token_type == NAME && next_token_type == ASG_OP)
 		assignment();
 	else
 		eql_expr();
@@ -228,39 +256,41 @@ void expression()
 
 void statement()
 {
-	TokenType kw_type = p.token_type;
+	enum token_type kw_type = token_type;
 
-	if (kw_type == GLOBAL_KW || kw_type == LOCAL_KW)
+	if (kw_type == GLOBAL_KW)
 	{
-		byte global = kw_type == GLOBAL_KW;
 		do {
 			read_token();
-			if (p.token_type != NAME)
-				ERROR("SyntaxError: invalid declaration on line %d", line_no);
-			(void)add_symbol(token_value(), p.scope, global);
+			if (token_type != NAME)
+				error("SyntaxError: invalid declaration on line %d", line_no);
+			(void) get_symbol(token_value, SCOPE_GLOBAL);
 			read_token();
-		} while (p.token_type == COMMA);
+		} while (token_type == COMMA);
 	}
 	else
 	{
 		if (kw_type == PRINT_KW || kw_type == RETURN_KW)
 			read_token();
-		if (p.token_type == SEMICOLON)
+		
+		if (token_type == SEMICOLON)
 		{
 			write_byte(LOAD_CONST);
-			write_byte(NONE);
+			write_byte(get_const(null_object()));
 		}
 		else
 			expression();
+
 		if (kw_type == PRINT_KW)
 			write_byte(PRINT);
 		else if (kw_type == RETURN_KW)
-			write_byte(RETURN_VALUE);
+			write_byte(RETURN);
 		else
 			write_byte(POP);
 	}
-	if (p.token_type != SEMICOLON)
-		ERROR("SyntaxError: invalid statement at line %d", line_no);
+
+	if (token_type != SEMICOLON)
+		error("SyntaxError: invalid statement");
 	read_token();	
 }
 
@@ -271,119 +301,144 @@ void name_list(int *argc)
 		forward order.
 	*/
 
-	Symbol s;
+	int s;
 
-	if (p.token_type != NAME)
-		ERROR("SyntaxError: invalid function argument list at line %d", line_no);
-	s = add_symbol(token_value(), p.scope, 0);
+	if (token_type != NAME)
+		error("SyntaxError: invalid function argument list");
+	
+	s = get_symbol(token_value, SCOPE_LOCAL);
 	read_token();
-	if (p.token_type == COMMA)
+
+	if (token_type == COMMA)
 	{
 		read_token();
 		name_list(argc);
 	}
+
 	write_byte(STORE);
-	write_bytes(&s, sizeof(Symbol));
+	write_int(s);
+	write_byte(POP);
+
 	(*argc)++;
 }
 
 void function()
 {
-	int argc_ptr, offset_ptr, jump_ptr;
-	int argc = 0;
-	Symbol s;
+	/*	A function represents a code object. */
 
-	read_token();	// "def"
-	if (p.token_type != NAME)
-		ERROR("SyntaxError: invalid function identifier at line %d", line_no);
-	s = get_symbol(token_value(), p.scope);
+	struct code *fco = safe_calloc(1, sizeof *fco);
+	struct code *parent = co;
+
+	read_token();				// consume DEF_KW
+	if (token_type != NAME)
+		error("SyntaxError: invalid function identifier");
+	
 	write_byte(LOAD_CONST);
-	write_byte(FUNCTION);
-	argc_ptr = get_offset();
-	write_int(0);
-	offset_ptr = get_offset();
-	write_int(0);
+	write_int(get_const(new_object(TYPE_CODE, fco)));
+
 	write_byte(STORE);
-	write_bytes(&s, sizeof(Symbol));
-	write_byte(JUMP);
-	jump_ptr = get_offset();
-	write_int(0);		
-	write_int_at(get_offset(), offset_ptr);
-	add_scope(++p.scope);
+	write_int(get_symbol(token_value, SCOPE_LOCAL));
+	write_byte(POP);
+
+	co = fco;
+
 	read_token();
-	if (p.token_type != LPAREN)
-		ERROR("SyntaxError: invalid function definition at line %d", line_no);
+	if (token_type != LPAREN)
+		error("SyntaxError: invalid function definition");
+
 	read_token();
-	if (p.token_type != RPAREN)
-		name_list(&argc);
-	if (p.token_type != RPAREN)
-		ERROR("SyntaxError: unterminated function definition at line %d", line_no);
-	write_int_at(argc, argc_ptr);
+	if (token_type != RPAREN)
+		name_list(&fco->argc);
+	if (token_type != RPAREN)
+		error("SyntaxError: unterminated function definition");
+
 	read_token();
-	if (p.token_type != BLOCK_START)
-		ERROR("SyntaxError: missing colon at line %d", line_no);
+	if (token_type != BLOCK_START)
+		error("SyntaxError: missing colon");
+
 	read_token();
-	if (!flags.allow_empty_blocks && p.token_type == BLOCK_END)
-		ERROR("SyntaxError: empty function block at line %d", line_no);
-	while (p.token_type != BLOCK_END)
+	if (!(options & flag_allow_empty_blocks) && token_type == BLOCK_END)
+		error("SyntaxError: empty function block");
+
+	while (token_type != BLOCK_END)
 		block();
-	write_byte(LOAD_CONST);		// in case there was no return statement
-	write_byte(NONE);
-	write_byte(RETURN_VALUE);
-	write_int_at(get_offset(), jump_ptr);
+
+	write_byte(LOAD_CONST);
+	write_int(get_const(null_object()));
+
+	write_byte(RETURN);
+
+	co = parent;
+
 	read_token();
-	reset_scope(p.scope--);
 }
 
 void block()
 {
 	int jump_ptr, target, while_start;
-	TokenType kw_type = p.token_type;
+	enum token_type kw_type = token_type;
 	
 	switch (kw_type)
 	{
 	case IF_KW:
 	case WHILE_KW:
 		read_token();
+
 		if (kw_type == WHILE_KW)
 			while_start = get_offset();
+
 		expression();
-		if (p.token_type != BLOCK_START)
-			ERROR("SyntaxError: missing colon at line %d", line_no);
+
+		if (token_type != BLOCK_START)
+			error("SyntaxError: missing colon");
+
 		write_byte(POP_JUMP_IF_FALSE);
 		jump_ptr = get_offset();
 		write_int(0);
+
 		read_token();
-		if (!flags.allow_empty_blocks && p.token_type == BLOCK_END)
-			ERROR("SyntaxError: empty block at line %d", line_no);	
-		while (p.token_type != BLOCK_END)
+		if (!(options & flag_allow_empty_blocks) && token_type == BLOCK_END)
+			error("SyntaxError: empty block");	
+
+		while (token_type != BLOCK_END)
 			block();
+
 		if (kw_type == WHILE_KW)
 		{
 			write_byte(JUMP);
 			write_int(while_start);
 		}
+
 		target = get_offset();
+
 		read_token();
-		if (p.token_type == ELSE_KW && kw_type == IF_KW)
+
+		if (token_type == ELSE_KW && kw_type == IF_KW)
 		{
 			int else_jump_ptr;
 
 			write_byte(JUMP);
 			else_jump_ptr = get_offset();
 			write_int(0);
+
 			target = get_offset();
+
 			read_token();
-			if (p.token_type != BLOCK_START)
-				ERROR("SyntaxError: missing colon at line %d", line_no);
+			if (token_type != BLOCK_START)
+				error("SyntaxError: missing colon");
+
 			read_token();
-			if (!flags.allow_empty_blocks && p.token_type == BLOCK_END)
-				ERROR("SyntaxError: empty block at line %d", line_no);
-			while (p.token_type != BLOCK_END)
+			if (!(options & flag_allow_empty_blocks) && token_type == BLOCK_END)
+				error("SyntaxError: empty block");
+
+			while (token_type != BLOCK_END)
 				block();
+
 			write_int_at(get_offset(), else_jump_ptr);
+			
 			read_token();
 		}
+
 		write_int_at(target, jump_ptr);
 		break;
 	case DEF_KW:
@@ -392,7 +447,6 @@ void block()
 	case PRINT_KW:
 	case RETURN_KW:
 	case GLOBAL_KW:
-	case LOCAL_KW:
 	case NAME:
 	case LITERAL:
 	case NUMERAL:
@@ -403,33 +457,39 @@ void block()
 		statement();
 		break;
 	default:
-		ERROR("SyntaxError: unterminated block at line %d", line_no);
+		error("SyntaxError: unterminated block");
 	}
 }
 
-void parse()
+void parse(struct code *main_co)
 {
+	int orig_line_no = line_no;
+
+	co = main_co;
+
 	line_no = 0;
-	p.offset = -1;
-	add_scope(p.scope = 0);
+	offset = -1;
 	read_token();
-	if (flags.repl)
+
+	if (repl_mode)
 	{
-		if (p.token_type == IF_KW || p.token_type == WHILE_KW || p.token_type == DEF_KW)
+		if (token_type == IF_KW || token_type == WHILE_KW || token_type == DEF_KW)
 			block();
 		else
-			while (p.token_type != END)
+			while (token_type != END)
 			{
-				if (p.token_type == IF_KW || p.token_type == WHILE_KW || p.token_type == DEF_KW)
+				if (token_type == IF_KW || token_type == WHILE_KW || token_type == DEF_KW)
 					break;
 				statement();
 			}
-		if (p.token_type != END)
-			ERROR("ReplError: invalid statement or block at line %d", line_no);
+
+		if (token_type != END)
+			error("ReplError: invalid statement or block");
 	}
 	else
-		while (p.token_type != END)
+		while (token_type != END)
 			block();
-	write_byte(STOP);
-	reset_scope();
+
+	write_byte(RETURN);
+	line_no = orig_line_no;
 }

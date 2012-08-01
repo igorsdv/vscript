@@ -1,29 +1,29 @@
 #include "main.h"
-#define STACK_ARRAY_ALLOC_SIZE 64
+#define STACK_ARRAY_SIZE 64
 
 static struct {
-	Object **array;
-	int size;
-	int length;
-} stack = { 0, 0, 0 };
+	size_t length;
+	size_t size;
+	struct object **array;
+} stack = { 0 };
 
-void push_object(Object *obj)
+void push_object(struct object *object)
 {
 	if (stack.length == stack.size)
-		stack.array = realloc(stack.array, (stack.size += STACK_ARRAY_ALLOC_SIZE) * sizeof(void *));
-	stack.array[stack.length++] = obj;
+		stack.array = safe_realloc(stack.array, (stack.size += STACK_ARRAY_SIZE) * sizeof *stack.array);
+	stack.array[stack.length++] = object;
 }
 
-Object *pop_stack()
+struct object *pop_stack()
 {
 	if (!stack.length)
-		ERROR("StackError: stack empty %d", line_no);
+		error("StackError: stack empty");
 	return stack.array[--stack.length];
 }
 
-Object *peek_stack()
+struct object *peek_stack()
 {
 	if (!stack.length)
-		ERROR("StackError: stack empty");
+		error("StackError: stack empty");
 	return stack.array[stack.length - 1];
 }

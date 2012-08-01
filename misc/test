@@ -1,10 +1,8 @@
-local x
-y = 2
-def f(a):
-	print a
+def f():
 	global x
-	x = a
-print x
-f(1)
-print x
-print y
+	print x
+	if x:
+		x = 0
+		f()
+x = 1
+f()
