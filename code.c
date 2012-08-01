@@ -80,11 +80,11 @@ void run(struct env *env)
 	struct code *co = env->co;
 	int *offset = &env->offset;
 
-	if (co->symbols.length > env->objects.length)
+	if (env->objects.length < co->symbols.length)
 	{
 		env->objects.array = safe_realloc(env->objects.array, co->symbols.length * sizeof *env->objects.array);
-		memset(env->objects.array + env->objects.length, 0, (co->symbols.length - env->objects.length) * sizeof *env->objects.array);
-		env->objects.length = co->symbols.length;
+		while (env->objects.length < co->symbols.length)
+			env->objects.array[env->objects.length++] = 0;
 	}
 
 	while (*offset < co->program.length)
