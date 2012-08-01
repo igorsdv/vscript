@@ -201,10 +201,10 @@ void run(struct env *env)
 		}
 		else if (op >= EQUAL && op <= LESS_THAN_EQUAL)
 		{
-			struct object *a = pop_stack();
-			struct object *b = pop_stack();
+			struct object *tos = pop_stack();
+			struct object *tos2 = pop_stack();
 
-			int result = compare(a, b);
+			int result = compare(tos2, tos);
 
 			if (result > 0)
 			{
@@ -223,25 +223,25 @@ void run(struct env *env)
 			else if (op == EQUAL || op == GREATER_THAN_EQUAL || op == LESS_THAN_EQUAL)
 				result = 1;
 
-			if (op != EQUAL && op != NOT_EQUAL && a->type == TYPE_CODE)
+			if (op != EQUAL && op != NOT_EQUAL && tos->type == TYPE_CODE)
 				error("TypeError: only equality comparison is defined on code objects");
 
 			push_object(new_object(TYPE_INT, &result));
 
-			gc_collect(a);
-			gc_collect(b);
+			gc_collect(tos);
+			gc_collect(tos2);
 		}
 		else if (op == ADD) // (op >= ADD && op <= DIV)
 		{
 			struct object *(*function[])(struct object *, struct object *) = { &add, &subtract, &multiply, &divide };
 
-			struct object *a = pop_stack();
-			struct object *b = pop_stack();
+			struct object *tos = pop_stack();
+			struct object *tos2 = pop_stack();
 
-			push_object(function[op - ADD](a, b));
+			push_object(function[op - ADD](tos2, tos));
 
-			gc_collect(a);
-			gc_collect(b);
+			gc_collect(tos);
+			gc_collect(tos2);
 		}
 		else
 			error("unrecognized opcode %d", op);
