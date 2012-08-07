@@ -231,9 +231,9 @@ void run(struct env *env)
 			gc_collect(tos);
 			gc_collect(tos2);
 		}
-		else if (op >= ADD && op <= DIV)
+		else if (op >= ADD && op <= MOD)
 		{
-			struct object *(*function[])(struct object *, struct object *) = { &add, &subtract, &multiply, &divide };
+			struct object *(*function[])(struct object *, struct object *) = { &add, &subtract, &multiply, &divide, &modulo };
 
 			struct object *tos = pop_stack();
 			struct object *tos2 = pop_stack();

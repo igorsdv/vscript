@@ -342,7 +342,7 @@ void tokenize(FILE *f)
 			}
 			append_char('\0');
 		}
-		else if (c == '*' || c == '/')
+		else if (c == '*' || c == '/' || c == '%')
 		{
 			append_char(c);
 			c = getc(f);

@@ -83,7 +83,8 @@ enum opcode {
 	ADD,
 	SUB,
 	MULT,
-	DIV
+	DIV,
+	MOD
 };
 
 struct env {							// combine ALL the declarations!
@@ -163,7 +164,8 @@ struct object *peek_stack();
 
 int bool_value(struct object *);
 int compare(struct object *, struct object *);
-struct object * add(struct object *, struct object *);
-struct object * subtract(struct object *, struct object *);
-struct object * multiply(struct object *, struct object *);
-struct object * divide(struct object *, struct object *);
+struct object *add(struct object *, struct object *);
+struct object *subtract(struct object *, struct object *);
+struct object *multiply(struct object *, struct object *);
+struct object *divide(struct object *, struct object *);
+struct object *modulo(struct object *, struct object *);

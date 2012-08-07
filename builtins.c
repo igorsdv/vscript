@@ -219,3 +219,29 @@ struct object *divide(struct object *a, struct object *b)
 		return new_object(TYPE_FLOAT, &value);
 	}
 }
+
+struct object *modulo(struct object *a, struct object *b)
+{
+	if (a->type != b->type)
+		error("TypeError: modulo operation on incompatible types");
+
+	if (a->type == TYPE_NONE)
+		error("TypeError: modulo operation is not defined on null objects");
+	else if (a->type == TYPE_CODE)
+		error("TypeError: modulo operation is not defined on code objects");
+	else if (a->type == TYPE_STRING)
+		error("TypeError: modulo operation is not defined on strings");
+	else if (a->type == TYPE_FLOAT)
+		error("TypeError: modulo operation is not defined on floating-point numbers");
+	else if (a->type == TYPE_INT)
+	{
+		int value = *(int *)b->value;
+
+		if (!value)
+			error("ValueError: integer division by zero");
+
+		value = *(int *)a->value % value;
+
+		return new_object(TYPE_INT, &value);
+	}
+}

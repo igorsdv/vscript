@@ -149,6 +149,8 @@ void mul_expr()
 			write_byte(MULT);
 		else if (oper == '/')
 			write_byte(DIV);
+		else if (oper == '%')
+			write_byte(MOD);
 	}
 }
 
