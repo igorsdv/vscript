@@ -2,7 +2,9 @@
 #define PROGRAM_ARRAY_SIZE 1024
 
 #define read_byte() *(byte *)read_bytes(co, offset, 1)
+#define peek_byte() *(byte *)peek_bytes(co, offset, 1)
 #define read_int() *(int *)read_bytes(co, offset, sizeof(int))
+#define peek_int() *(int *)peek_bytes(co, offset, sizeof(int))
 #define read_string() (char *)read_bytes(co, offset, strlen((char *)(env->co->program.array + &offset)) + 1)
 
 char *opcodes[] = { "RETURN", "SET_LINE", "POP", "PRINT", "STORE", "LOAD", "LOAD_CONST", "CALL_FUNCTION", "JUMP", "POP_JUMP_IF_FALSE", "UNARY_PLUS", "UNARY_MINUS", "UNARY_NOT", "EQUAL", "NOT_EQUAL", "GREATER_THAN", "LESS_THAN", "GREATER_THAN_EQUAL", "LESS_THAN_EQUAL", "ADD", "SUB", "MULT", "DIV", "MOD" };
@@ -27,6 +29,11 @@ void write_byte(struct code *co, byte b)
 void write_int(struct code *co, int i)
 {
 	write_bytes(co, &i, sizeof i);
+}
+
+byte *peek_bytes(struct code *co, int *offset, size_t n)
+{
+	return co->program.array + *offset;
 }
 
 byte *read_bytes(struct code *co, int *offset, size_t n)
