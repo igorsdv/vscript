@@ -139,7 +139,7 @@ void run(struct env *env)
 			int argc = read_int();
 
 			struct object *object = pop_stack();
-			struct env function = { 0 };
+			struct env function = { 0 };	// create new execution environment
 
 			if (object->type != TYPE_CODE)
 				error("TypeError: object is not callable");

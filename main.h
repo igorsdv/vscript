@@ -87,15 +87,16 @@ enum opcode {
 	MOD
 };
 
-struct env {							// combine ALL the declarations!
-	struct code {						// code object
-		struct program {
+/* combine ALL the declarations! */
+struct env {							// execution environment (created at runtime)
+	struct code {						// static code object (function)
+		struct program {				// bytecode
 			size_t length;
 			byte *array;
 		} program;
-		struct data {
+		struct data {					// constant values
 			size_t length;
-			struct object {				// object
+			struct object {				/* object */
 				enum object_type {
 					TYPE_NONE,
 					TYPE_CODE,
@@ -107,9 +108,9 @@ struct env {							// combine ALL the declarations!
 				int refcount;
 			} **array;
 		} data;
-		struct symbols {
+		struct symbols {				// variable names
 			size_t length;
-			struct symbol {
+			struct symbol {				/* symbol */
 				char *name;
 				enum scope {
 					SCOPE_NONLOCAL,		// default
@@ -118,14 +119,14 @@ struct env {							// combine ALL the declarations!
 				} scope;
 			} *array;
 		} symbols;
-		int argc;
+		int argc;						// number of arguments taken by function
 	} *co;
-	struct objects {
+	struct objects {					// variable values corresponding to names in co->symbols
 		size_t length;
-		struct object **array;
+		struct object **array;			// array of pointers to object
 	} objects;
-	struct env *parent;
-	int offset;
+	struct env *parent;					// parent execution environment (call stack)
+	int offset;							// offset in co->program
 };
 
 /* prototypes */
