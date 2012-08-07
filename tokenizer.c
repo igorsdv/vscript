@@ -358,8 +358,12 @@ void tokenize(FILE *f)
 			}
 			append_char('\0');
 		}
-		else
-			error("SyntaxError: unrecognized character <%c> at line %d", c, line_no);
+		else {
+			if(isprint(c))
+				error("SyntaxError: unrecognized character <%c>", c);
+			else
+				error("SyntaxError: unrecognized character 0x%x", c);
+		}
 		c = getc(f);	// where appropriate, "continue" is used to skip this instead of ungetc()
 	}
 
