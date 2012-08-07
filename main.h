@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
@@ -19,7 +18,7 @@ enum options {				// bitfields
 };
 
 int line_no;				// line number (you don't say?)
-byte repl_mode;				// interactive mode
+int repl_mode;				// interactive mode
 
 /* helpers */
 
@@ -71,7 +70,6 @@ enum opcode {
 	LOAD_CONST,			// LOAD_CONST (int c)
 	CALL_FUNCTION,		// CALL_FUNCTION (int argc)
 	JUMP,				// JUMP (int target)
-//	POP_JUMP_IF_TRUE,
 	POP_JUMP_IF_FALSE,	// pop and jump (int target)
 	UNARY_PLUS,
 	UNARY_MINUS,
