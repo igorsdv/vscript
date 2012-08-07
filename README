@@ -1,0 +1,13 @@
+vscript 0.1
+a basic interpreter with a basic VM for a basic language with python-like syntax
+
+License: WTFPL <http://sam.zoy.org/wtfpl/COPYING> 
+
+Features:
+	- strongly typed object system
+	- functions as objects
+	- basic interactive mode
+
+Options:
+	-i, --repl: interactive mode
+	-b, --bytecode: print bytecode instead of executing
