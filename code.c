@@ -5,7 +5,7 @@
 #define read_int() *(int *)read_bytes(co, offset, sizeof(int))
 #define read_string() (char *)read_bytes(co, offset, strlen((char *)(env->co->program.array + &offset)) + 1)
 
-char *opcodes[] = { "RETURN", "SET_LINE", "POP", "PRINT", "STORE", "LOAD", "LOAD_CONST", "CALL_FUNCTION", "JUMP", "POP_JUMP_IF_FALSE", "UNARY_PLUS", "UNARY_MINUS", "UNARY_NOT", "EQUAL", "NOT_EQUAL", "GREATER_THAN", "LESS_THAN", "GREATER_THAN_EQUAL", "LESS_THAN_EQUAL", "ADD", "SUB", "MULT", "DIV" };
+char *opcodes[] = { "RETURN", "SET_LINE", "POP", "PRINT", "STORE", "LOAD", "LOAD_CONST", "CALL_FUNCTION", "JUMP", "POP_JUMP_IF_FALSE", "UNARY_PLUS", "UNARY_MINUS", "UNARY_NOT", "EQUAL", "NOT_EQUAL", "GREATER_THAN", "LESS_THAN", "GREATER_THAN_EQUAL", "LESS_THAN_EQUAL", "ADD", "SUB", "MULT", "DIV", "MOD" };
 
 void write_bytes(struct code *co, void *value, size_t n)
 {
