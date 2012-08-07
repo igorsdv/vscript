@@ -152,8 +152,14 @@ void run(struct env *env)
 			while (argc++ < function.co->argc)
 				push_object(null_object());
 
-			run(&function);
-			free(function.objects.array);
+			// Tail-call elimination
+			if(object->value == co		// same function ?
+			   && peek_byte() == RETURN)	// returning call ?
+				*offset = 0;
+			else {
+				run(&function);
+				free(function.objects.array);
+			}
 		}
 		else if (op == JUMP)
 			*offset = read_int();
