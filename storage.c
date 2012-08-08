@@ -13,7 +13,7 @@ int get_symbol(struct code *co, char *name, enum scope scope)
 		{
 			if (scope == SCOPE_GLOBAL && symbols->array[i].scope != SCOPE_GLOBAL)
 			{
-				log("NameWarning: global variable '%s' referenced before declaration at line %u", name, line_no);
+				// log("NameWarning: global variable '%s' referenced before declaration at line %u", name, line_no);
 				symbols->array[i].scope = SCOPE_GLOBAL;
 			}
 			else if (scope == SCOPE_LOCAL && symbols->array[i].scope == SCOPE_NONLOCAL)
@@ -78,7 +78,7 @@ void store_symbol(struct env *env, int s)
 		while (env->parent) env = env->parent;
 
 		length = env->co->symbols.length;
-		s = get_symbol(env->co, name, SCOPE_LOCAL);
+		s = get_symbol(env->co, name, SCOPE_GLOBAL);
 		
 		if (env->co->symbols.length > env->objects.length)
 		{
