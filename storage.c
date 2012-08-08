@@ -46,7 +46,7 @@ void load_symbol(struct env *env, int s)
 	enum scope scope = env->co->symbols.array[s].scope;
 	int i;
 
-	if (scope == SCOPE_LOCAL)
+	if (scope == SCOPE_LOCAL || scope == SCOPE_GLOBAL && !env->parent)
 	{
 		push_object(env->objects.array[s]);
 		return;
@@ -59,10 +59,7 @@ void load_symbol(struct env *env, int s)
 		for (i = 0; i < env->co->symbols.length; i++)
 		{
 			if (env->co->symbols.array[i].scope != SCOPE_NONLOCAL && !strcmp(name, env->co->symbols.array[i].name))
-			{
-				push_object(env->objects.array[i]);
-				return;
-			}
+				return load_symbol(env, i);
 		}
 	} while (env = env->parent);
 
